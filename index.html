@@ -208,6 +208,7 @@
             <button id="c-mute" type="button"></button>
           </div>
           <div id="c-facts" class="facts"></div>
+          <button id="count-btn" type="button" class="primary big count-btn" hidden data-t>Count chips</button>
           <div id="c-chips" class="chip-legend"></div>
           <p id="c-status" class="status"></p>
         </div>
@@ -217,7 +218,10 @@
             <button id="late-btn" type="button" class="grow" data-t>Add player</button>
             <button id="undo-btn" type="button" class="grow" data-t>Undo</button>
           </div>
-          <h3><span data-t>In play</span> <span id="in-count"></span></h3>
+          <div class="list-head">
+            <h3><span data-t>In play</span> <span id="in-count"></span></h3>
+            <button id="sort-btn" type="button" class="link" hidden></button>
+          </div>
           <ul id="in-list" class="list"></ul>
           <h3 id="out-title" data-t>Out</h3>
           <ul id="out-list" class="list"></ul>
@@ -225,7 +229,10 @@
 
         <div id="page-tables" class="page">
           <div id="moves-banner" class="banner" hidden></div>
-          <p id="tables-tip" class="muted small tip"></p>
+          <div class="tables-head">
+            <p id="tables-tip" class="muted small tip"></p>
+            <div id="table-view" class="seg two view-toggle"></div>
+          </div>
           <div id="tables-grid" class="tables-grid"></div>
         </div>
 
@@ -259,7 +266,7 @@
   </main>
 
   <!-- A new level or a break: big, for a few seconds -->
-  <div id="overlay" class="overlay" hidden><div class="overlay-box"><div id="ov-title" class="ov-title"></div><div id="ov-main" class="ov-main"></div><div id="ov-sub" class="ov-sub"></div></div></div>
+  <div id="overlay" class="overlay" hidden><div class="overlay-box"><div id="ov-title" class="ov-title"></div><div id="ov-main" class="ov-main"></div><div id="ov-sub" class="ov-sub"></div><div id="ov-note" class="ov-note"></div></div></div>
 
   <!-- A player's options -->
   <dialog id="action-dialog">
@@ -320,6 +327,20 @@
     </div>
   </dialog>
 
+  <!-- Chip count: every stack, table by table -->
+  <dialog id="count-dialog" class="scrolling">
+    <div class="dialog-body">
+      <h2 data-t>Count chips</h2>
+      <p id="count-text" class="muted small"></p>
+      <div id="count-rows"></div>
+    </div>
+    <div id="count-sum" class="count-sum"></div>
+    <div class="row dialog-buttons">
+      <button id="count-cancel" type="button" data-t>Cancel</button>
+      <button id="count-save" type="button" class="primary grow" data-t>Save</button>
+    </div>
+  </dialog>
+
   <!-- Seat moves: balancing, breaking a table, the final table -->
   <dialog id="moves-dialog" class="scrolling">
     <div class="dialog-body">
@@ -351,6 +372,7 @@
         <button id="g-add-level" type="button" class="grow" data-t>Add level</button>
         <button id="g-add-break" type="button" class="grow" data-t>Add break</button>
       </div>
+      <button id="g-count" type="button" class="big" data-t>Count chips</button>
       <button id="g-end" type="button" class="danger" data-t>End tournament</button>
     </div>
     <div class="row dialog-buttons">

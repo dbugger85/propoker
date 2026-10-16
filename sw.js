@@ -2,7 +2,7 @@
 // updates arrive straight away; if that fails or takes over 3 seconds, it uses
 // the copy saved on the phone. From Substitutor.
 
-const CACHE = 'propoker-v1';
+const CACHE = 'propoker-v2';
 const FILES = [
   './',
   './index.html',
@@ -11,6 +11,7 @@ const FILES = [
   './js/blinds.js',
   './js/clock.js',
   './js/tables.js',
+  './js/chips.js',
   './js/money.js',
   './js/tournament.js',
   './js/summary.js',

@@ -6,7 +6,7 @@ Open it at **https://dbugger85.github.io/propoker/**. It's free, with no sign-up
 
 <p>
   <img src="screenshots/phone-clock-light.png" width="240" alt="The blind clock">
-  <img src="screenshots/phone-tables.png" width="240" alt="Two tables with their seats">
+  <img src="screenshots/phone-tables.png" width="240" alt="Two poker tables seen from above, with each player's chips">
   <img src="screenshots/phone-clock-dark.png" width="240" alt="The clock in dark mode">
 </p>
 
@@ -15,7 +15,8 @@ Open it at **https://dbugger85.github.io/propoker/**. It's free, with no sign-up
 - **A big blind clock** with sounds: two beeps at one minute left, and a chime and a big announcement at every new level and break. It keeps the right time even if the phone locks.
 - **Three blind structures**: Turbo (12-minute levels), Standard (20) and Deep (25), with breaks. You can also build your own, level by level.
 - **Players and knockouts**, with who knocked whom out. Also rebuys, add-ons, late entry, players who leave, and undo for every step.
-- **Several tables**: a random seat draw, then the app tells you when to move a player, when to close a table, and when it's the final table. You can also move players yourself.
+- **Several tables**, drawn as real poker tables seen from above: a random seat draw, then the app tells you when to move a player, when to close a table, and when it's the final table. You can also move players yourself.
+- **Chip counts** at the breaks: type in each stack, and the app shows the chip leader and each player's stack in big blinds.
 - **Your chip set**: each colour's value, and how many of each colour every player gets. Chips are game points, not money.
 - **Money**: buy-ins, rebuys and add-ons. It shows who has paid, the prize pool and the prizes.
 - **At the end**: results, who owes whom, and a text to share in the group chat.
@@ -51,7 +52,9 @@ Tap **Start tournament**. The seat draw shows where everyone sits.
 - **Tap a player** to knock them out, give a rebuy or an add-on, mark them as paid, change their seat, rename them, or record that they left. If you tap by mistake, use **Undo**.
 - **Late entry**: **Add player** on the Players page. The new player gets a seat where there's most room.
 - When tables need evening out, a popup lists **who moves where**. Tap **They have moved** once it's done, or **Someone else** to pick a different player.
+- **The Tables page** shows each table from above, with the seats round the edge. Players who must move pulse orange, with their new seat. **List** at the top switches to a plain list of seats.
 - **Move players by hand**: on the Tables page, tap a player and then the new seat, at the same table or another one. If the seat is taken, the two players swap.
+- **Count chips** at a break (the button under the clock, or the cog at any time): type in each player's chips, table by table; Enter jumps to the next box. At the bottom it says whether the total adds up with the chips in play. The Players page then shows each stack, the chip leader, and can sort by stack. Rebuys and add-ons after a count are added to the stack. To count one player, tap them and pick **Chip count…**.
 - At a break the clock page says when the smallest chips are no longer needed (**colour up**).
 - The **cog** (⚙) changes sounds, cut-off levels, seats per table and the coming levels. It also has **End tournament**: if players are still in, they can make a deal and split the rest of the prize money.
 

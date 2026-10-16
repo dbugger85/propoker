@@ -108,12 +108,23 @@ try {
   g = await game();
   const a = g.players.find((p) => p.table === 1);
   const b = g.players.find((p) => p.table === 2);
-  await page.click(`#tables-grid .table-card:nth-child(1) .seats button:nth-child(${a.seat})`);
+  assert.equal(await page.$$eval('#tables-grid .drawn-table', (l) => l.length), 2, 'drawn tables by default');
+  assert.equal(await page.$$eval('#tables-grid .drawn-table:nth-child(1) .seat-marker:not(.empty)', (l) => l.length), 6);
+  assert.match(await page.getAttribute(`#tables-grid .drawn-table:nth-child(1) .seat-marker[data-seat="${a.seat}"]`, 'aria-label'), new RegExp(`^Seat ${a.seat}, ${a.name}`));
+  await page.click(`#tables-grid .drawn-table:nth-child(1) .seat-marker[data-seat="${a.seat}"]`);
   assert.match(await page.textContent('#tables-tip'), new RegExp(a.name));
-  await page.click(`#tables-grid .table-card:nth-child(2) .seats button:nth-child(${b.seat})`);
+  assert.equal(await page.$$eval('#tables-grid .seat-marker.target', (l) => l.length), 11, 'every other seat is ringed');
+  await shot('7a-tables-picking');
+  await page.click(`#tables-grid .drawn-table:nth-child(2) .seat-marker[data-seat="${b.seat}"]`);
   g = await game();
   assert.deepEqual([g.players.find((p) => p.id === a.id).table, g.players.find((p) => p.id === b.id).table], [2, 1]);
   await shot('7-tables');
+  // The list view is still there for those who like it, and remembered
+  await page.click('#table-view button:has-text("List")');
+  assert.equal(await page.$$eval('#tables-grid .table-card', (l) => l.length), 2);
+  assert.equal(await page.evaluate(() => localStorage.getItem('propoker.tableView')), 'grid');
+  await shot('7b-tables-list');
+  await page.click('#table-view button:has-text("Tables")');
   // And to an empty seat at the same table
   const empty = [1, 2, 3, 4, 5, 6].find((s) => !g.players.some((p) => p.table === 1 && p.seat === s));
   assert.equal(empty, undefined, 'six players, six seats');
@@ -141,6 +152,71 @@ try {
   await page.click('#m-payments li:first-child button');
   assert.match(await page.textContent('#m-unpaid'), /11 owe/);
   await shot('9-money');
+
+  // Chip counts: skip to the break, count everyone, then a rebuy adds to a stack
+  await toPage(0);
+  assert.equal(await page.isVisible('#count-btn'), false, 'no count button while playing');
+  for (let i = 0; i < 8 && !(await page.$eval('#clock', (c) => c.classList.contains('on-break'))); i++) {
+    await page.click('#c-skip');
+    await page.click('#overlay');
+  }
+  assert.equal(await page.textContent('#c-blinds'), 'Break');
+  await page.click('#count-btn');
+  await page.waitForSelector('#count-dialog[open]');
+  const boxes = await page.$$('#count-rows input');
+  assert.equal(boxes.length, 12);
+  assert.equal(await page.$$eval('#count-rows h3', (h) => h.map((x) => x.textContent)).then((t) => t.join()), 'Table 1,Table 2');
+  assert.match(await text('#count-sum'), /12 players not counted yet/);
+  g = await game();
+  const inPlay = g.players.reduce((s, p) => s + 10000 + p.rebuys * 10000 + (p.addOn ? 15000 : 0), 0);
+  await boxes[0].fill('20000');
+  await boxes[0].press('Enter');
+  assert.equal(await page.evaluate(() => document.activeElement.getAttribute('aria-label')), await boxes[1].getAttribute('aria-label'), 'Enter goes to the next box');
+  for (const b of boxes.slice(1)) await b.fill('10000');
+  assert.match(await text('#count-sum'), /Adds up/);
+  await boxes[1].fill('12500');
+  assert.match(await text('#count-sum'), /2 500 too many/);
+  await boxes[1].fill('8000');
+  assert.match(await text('#count-sum'), /2 000 missing/);
+  await boxes[1].fill('10000');
+  assert.equal(inPlay, 130000);
+  await shot('9b-count', false);
+  await page.click('#count-save');
+  g = await game();
+  assert.equal(g.players.filter((p) => p.stack != null).length, 12);
+  assert.match(await text('#c-facts'), /Chip leader: \w+, 20 000/);
+  await toPage(1);
+  const leaderRow = page.locator('#in-list li:has(.badge.leader)');
+  assert.equal(await leaderRow.count(), 1);
+  assert.match((await leaderRow.textContent()).replace(/\s/g, " "), /20 000 · \d+ BB/);
+  await page.click('#sort-btn');
+  assert.equal(await page.locator('#in-list li:first-child .badge.leader').count(), 1, 'sorted by stack');
+  await page.click('#sort-btn');
+  await shot('9c-stacks');
+  await toPage(2);
+  assert.equal(await page.$$eval('#tables-grid .seat-marker.leader', (l) => l.length), 1);
+  assert.match(await text('#tables-grid .seat-marker.leader .marker-stack'), /20 000/);
+  await shot('9d-tables-stacks');
+  await toPage(1);
+  // A rebuy after the count adds its chips (the rebuy cut-off is passed, so allow it anyway)
+  const second = await page.locator('#in-list li:nth-child(2) .name').evaluate((e) => e.firstChild.textContent);
+  await page.click('#in-list li:nth-child(2) button');
+  await page.click('#action-buttons button:has-text("Rebuy")');
+  if (await isOpen('ask-dialog')) await page.click('#ask-ok');
+  g = await game();
+  assert.equal(g.players.find((p) => p.name === second).stack, 20000);
+  await page.click('#toast-action'); // Undo the rebuy
+  await page.click('#undo-btn'); // and the count
+  g = await game();
+  assert.equal(g.players.filter((p) => p.stack != null).length, 0, 'undo removes the count');
+  assert.equal(await page.isVisible('#sort-btn'), false);
+  // One player's count from their options
+  await page.click('#in-list li:first-child button');
+  await page.click('#action-buttons button:has-text("Chip count")');
+  assert.equal(await page.$$eval('#count-rows input', (l) => l.length), 1);
+  await page.keyboard.type('9000');
+  await page.click('#count-save');
+  assert.match(await text("#in-list li:first-child .sub.stack"), /9 000/);
 
   // Knock out from table 1 until the tables need moves; carry them out
   await toPage(1);

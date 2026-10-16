@@ -130,3 +130,30 @@ export function swapSeats(players, a, b) {
     return p;
   });
 }
+
+// Where the seats go on the drawn table: a stadium (an oval with straight
+// sides) in a box `aspect` times as wide as it is tall, its edge `inset` (a
+// share of the height) in from the box. Seat 1 is at the bottom middle, the
+// dealer's view, then clockwise. Spaced evenly along the edge, not by angle,
+// so the long sides don't crowd. Returns [{ seat, x, y }] in percent of the box.
+export function seatPositions(seats, aspect = 1.5, inset = 0.14) {
+  const r = 0.5 - inset;
+  const h = Math.max(0, aspect / 2 - inset - r); // half the straight side
+  const cx = aspect / 2;
+  const cy = 0.5;
+  const perimeter = 4 * h + 2 * Math.PI * r;
+  const at = (s) => {
+    if (s < h) return [cx - s, cy + r];
+    s -= h;
+    if (s < Math.PI * r) return [cx - h - r * Math.sin(s / r), cy + r * Math.cos(s / r)];
+    s -= Math.PI * r;
+    if (s < 2 * h) return [cx - h + s, cy - r];
+    s -= 2 * h;
+    if (s < Math.PI * r) return [cx + h + r * Math.sin(s / r), cy - r * Math.cos(s / r)];
+    return [cx + h - (s - Math.PI * r), cy + r];
+  };
+  return Array.from({ length: seats }, (_, i) => {
+    const [x, y] = at((i * perimeter) / seats);
+    return { seat: i + 1, x: (100 * x) / aspect, y: 100 * y };
+  });
+}

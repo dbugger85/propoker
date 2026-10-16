@@ -9,6 +9,7 @@ const LAST_KEY = 'propoker.lastSummary';
 const SEEN_KEY = 'propoker.seen';
 const THEME_KEY = 'propoker.theme';
 const INSTALL_KEY = 'propoker.installHidden';
+const TABLE_VIEW_KEY = 'propoker.tableView';
 
 export const DEFAULT_SETUP = {
   v: 1,
@@ -117,5 +118,21 @@ export function loadInstallHidden() {
 export function saveInstallHidden() {
   try {
     localStorage.setItem(INSTALL_KEY, '1');
+  } catch {}
+}
+
+// The Tables page: 'drawn' (poker tables seen from above) or 'grid' (a list of seats). Kept on this phone.
+export function loadTableView() {
+  try {
+    return localStorage.getItem(TABLE_VIEW_KEY) === 'grid' ? 'grid' : 'drawn';
+  } catch {
+    return 'drawn';
+  }
+}
+
+export function saveTableView(view) {
+  try {
+    if (view === 'grid') localStorage.setItem(TABLE_VIEW_KEY, 'grid');
+    else localStorage.removeItem(TABLE_VIEW_KEY);
   } catch {}
 }

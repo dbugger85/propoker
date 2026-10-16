@@ -1,11 +1,11 @@
 // Screens, buttons and popups. The rules live in blinds.js, clock.js,
 // tables.js, money.js and tournament.js (no DOM code there).
 
-import { loadSetup, saveSetup, loadGame, saveGame, clearGame, loadLast, saveLast, loadSeen, saveSeen, loadTheme, saveTheme, loadInstallHidden, saveInstallHidden } from './storage.js';
+import { loadSetup, saveSetup, loadGame, saveGame, clearGame, loadLast, saveLast, loadSeen, saveSeen, loadTheme, saveTheme, loadInstallHidden, saveInstallHidden, loadTableView, saveTableView } from './storage.js';
 import { PRESETS, PRESET_ORDER, buildLevels, anteFor, levelNumber, nextPlay, nextLevel, totalMinutes, playLevel } from './blinds.js';
 import * as C from './clock.js';
 import * as T from './tournament.js';
-import { plan, applyMoves, swapSeats, tableCount } from './tables.js';
+import { plan, applyMoves, swapSeats, tableCount, seatPositions } from './tables.js';
 import { CURRENCIES, prizes, payoutProblem, formatMoney, groupDigits, owed, PERCENTS } from './money.js';
 import { results, shareText, mostKnockouts } from './summary.js';
 import { CHIP_COLORS, makeStack, enoughFor, colourUp, smallestChip, sortChips } from './chips.js';
@@ -747,17 +747,18 @@ function levelChanged(before, rebuysWereOpen) {
   else if (now.ante) sub = tr('Ante {a}', { a: chips(now.ante) });
   if (now.break) {
     const next = nextPlay(game.levels, game.clock.levelIndex);
-    announce(tr('Break'), clockText(now.minutes * 60000), sub || (next ? tr('Next: {blinds}', { blinds: blindsText(next) }) : ''));
+    announce(tr('Break'), clockText(now.minutes * 60000), sub || (next ? tr('Next: {blinds}', { blinds: blindsText(next) }) : ''), tr('A good time to count the chips'));
   } else {
     announce(tr('Level {n}', { n: T.currentLevelNumber(game) }), blindsText(now), sub);
   }
   renderGame();
 }
 
-function announce(title, main, sub) {
+function announce(title, main, sub, note = '') {
   $('ov-title').textContent = title;
   $('ov-main').textContent = main;
   $('ov-sub').textContent = sub;
+  $('ov-note').textContent = note;
   $('overlay').hidden = false;
   clearTimeout(announce.timer);
   announce.timer = setTimeout(() => ($('overlay').hidden = true), 5000);
@@ -808,12 +809,14 @@ function renderClock() {
   const bb = l.break ? next?.bb : l.bb;
   const toBreak = C.untilBreak(c, game.levels, now);
   const pool = T.money(game).pool;
+  const leader = T.chipLeader(game);
   $('c-facts').replaceChildren(
-    fact(tr('Players'), `${left2} / ${game.players.length}`),
+    fact(tr('Players'), `${left2} / ${game.players.length}`, { sub: leader.length ? tr('Chip leader: {name}, {chips}', { name: leader.map((p) => p.name).join(', '), chips: chips(leader[0].stack) }) : '' }),
     fact(tr('Average stack'), chips(avg), { sub: bb ? tr('{n} big blinds', { n: Math.round(avg / bb) }) : '' }),
     fact(tr('Prize pool'), cash(pool), { gold: true }),
     fact(tr('Next break'), toBreak == null ? '–' : toBreak === 0 ? tr('Now') : clockText(toBreak)),
   );
+  $('count-btn').hidden = !l.break;
   renderChipLegend();
   const status = [];
   if (T.addOnTime(game)) status.push(tr('Add-ons now'));
@@ -863,10 +866,20 @@ $('c-mute').addEventListener('click', () => {
 // ---------- players ----------
 
 const seatText = (p) => tr('Table {t}, seat {s}', { t: p.table, s: p.seat });
+// The big blind now (at a break: the next level's)
+const currentBB = () => (level().break ? nextPlay(game.levels, game.clock.levelIndex)?.bb : level().bb);
+// "23 400 · 29 BB", or '' when not counted
+function stackText(stack) {
+  if (stack == null) return '';
+  const bb = T.stackInBB(stack, currentBB());
+  return bb == null ? chips(stack) : `${chips(stack)} · ${tr('{n} BB', { n: bb })}`;
+}
+let sortByStack = false;
 const multiTable = () => game.tables.filter((t) => t.open).length > 1;
 
-function badges(p) {
+function badges(p, leaders = []) {
   return el('span', { class: 'badges' }, [
+    leaders.includes(p) ? el('span', { class: 'badge leader' }, tr('Chip leader')) : null,
     p.rebuys ? el('span', { class: 'badge rebuy' }, p.rebuys > 1 ? tr('{n} rebuys', { n: p.rebuys }) : tr('Rebuy')) : null,
     p.addOn ? el('span', { class: 'badge addon' }, tr('Add-on')) : null,
     !p.paid ? el('span', { class: 'badge owes' }, cash(owed(p, S()))) : null,
@@ -874,15 +887,20 @@ function badges(p) {
 }
 
 function renderPlayers() {
-  const inP = T.inPlay(game).sort((a, b) => a.table - b.table || a.seat - b.seat);
+  const anyCount = T.inPlay(game).some((p) => p.stack != null);
+  const bySeat = (a, b) => a.table - b.table || a.seat - b.seat;
+  const inP = T.inPlay(game).sort(sortByStack && anyCount ? (a, b) => (b.stack ?? -1) - (a.stack ?? -1) || bySeat(a, b) : bySeat);
   const out = game.players.filter((p) => p.status !== 'in').sort((a, b) => a.place - b.place);
+  const leaders = T.chipLeader(game);
   $('in-count').textContent = `(${inP.length})`;
+  $('sort-btn').hidden = !anyCount;
+  $('sort-btn').textContent = sortByStack ? tr('Sort by seat') : tr('Sort by stack');
   $('in-list').replaceChildren(
     ...inP.map((p) =>
       el('li', { class: 'player' }, [
         el('button', { type: 'button', onclick: () => openActions(p.id) }, [
-          el('span', { class: 'name' }, [p.name, el('span', { class: 'sub' }, seatText(p))]),
-          badges(p),
+          el('span', { class: 'name' }, [p.name, el('span', { class: 'sub' }, seatText(p)), p.stack != null ? el('span', { class: 'sub stack' }, stackText(p.stack)) : null]),
+          badges(p, leaders),
         ]),
       ]),
     ),
@@ -911,7 +929,7 @@ function openActions(id) {
   const dlg = $('action-dialog');
   $('action-title').textContent = p.name;
   const paidLine = p.paid ? tr('Paid {sum}', { sum: cash(owed(p, S())) }) : tr('Owes {sum}', { sum: cash(owed(p, S())) });
-  $('action-text').textContent = p.status === 'in' ? `${seatText(p)} · ${paidLine}` : paidLine;
+  $('action-text').textContent = p.status === 'in' ? [seatText(p), stackText(p.stack), paidLine].filter(Boolean).join(' · ') : paidLine;
   const act = (label, fn, cls = '') => el('button', { type: 'button', class: cls, onclick: () => { dlg.close(); fn(); } }, label);
   const buttons = [];
   if (p.status === 'in') {
@@ -923,6 +941,7 @@ function openActions(id) {
   }
   buttons.push(act(p.paid ? tr('Not paid after all') : tr('Has paid {sum}', { sum: cash(owed(p, S())) }), () => change(() => T.setPaid(game, p.id, !p.paid))));
   if (p.status === 'in') buttons.push(act(tr('Change seat'), () => { goToPage(2); selectSeat({ table: p.table, seat: p.seat }); }));
+  if (p.status === 'in') buttons.push(act(tr('Chip count…'), () => openCount(p.id)));
   buttons.push(act(tr('Rename'), () => renameFlow(p)));
   if (p.status === 'in') buttons.push(act(tr('Left the game'), () => leaveFlow(p)));
   $('action-buttons').replaceChildren(...buttons);
@@ -1015,6 +1034,10 @@ function undo() {
   toast(tr('Undone'));
 }
 $('undo-btn').addEventListener('click', undo);
+$('sort-btn').addEventListener('click', () => {
+  sortByStack = !sortByStack;
+  renderPlayers();
+});
 
 $('late-btn').addEventListener('click', async () => {
   if (!T.lateOpen(game)) {
@@ -1028,9 +1051,88 @@ $('late-btn').addEventListener('click', async () => {
   toast(tr('{name}: {seat}', { name: p.name, seat: seatText(p) }), { label: tr('Undo'), onclick: undo });
 });
 
+// ---------- chip counts ----------
+
+// Every player still in, table by table in seat order, so you can walk round
+// the table. With `only`, just that player. Empty boxes keep the last count.
+function openCount(only) {
+  const dlg = $('count-dialog');
+  const bb = currentBB();
+  const left = T.inPlay(game).filter((p) => !only || p.id === only).sort((a, b) => a.table - b.table || a.seat - b.seat);
+  const inputs = new Map();
+  const rows = [];
+  let table = null;
+  for (const p of left) {
+    if (!only && multiTable() && p.table !== table) rows.push(el('h3', { class: 'count-table' }, tr('Table {n}', { n: (table = p.table) })));
+    const input = el('input', { type: 'number', inputmode: 'numeric', min: '0', enterkeyhint: 'next', placeholder: p.stack ?? '–', 'aria-label': tr('Chips for {name}', { name: p.name }) });
+    const inBB = el('span', { class: 'count-bb muted small' });
+    const showBB = () => (inBB.textContent = num(input, 0) != null && bb ? tr('{n} BB', { n: T.stackInBB(num(input, 0), bb) }) : '');
+    input.addEventListener('input', () => { showBB(); renderCountSum(); });
+    showBB();
+    inputs.set(p.id, input);
+    rows.push(el('label', { class: 'count-row' }, [
+      el('span', { class: 'count-seat' }, String(p.seat)),
+      el('span', { class: 'name' }, [p.name, p.stack != null ? el('span', { class: 'sub' }, tr('Last count {chips}, level {n}', { chips: chips(p.stack), n: p.stackLevel ?? '–' })) : null]),
+      input,
+      inBB,
+    ]));
+  }
+  // Enter goes to the next box, so you can count a table without lifting the keyboard
+  const list = [...inputs.values()];
+  list.forEach((input, i) => input.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    if (list[i + 1]) list[i + 1].focus();
+    else input.blur();
+  }));
+  $('count-rows').replaceChildren(...rows);
+  $('count-text').textContent = only ? tr('The chips {name} has now', { name: left[0]?.name }) : tr('Type in each player’s chips, table by table. A box left empty keeps the last count');
+  const typed = () => Object.fromEntries([...inputs].map(([id, input]) => [id, num(input, 0)]).filter(([, v]) => v != null));
+
+  // Counted so far against the chips in play (a warning, never a block)
+  function renderCountSum() {
+    const stacks = typed();
+    const all = T.inPlay(game);
+    const value = (p) => stacks[p.id] ?? p.stack;
+    const total = all.reduce((s, p) => s + (value(p) ?? 0), 0);
+    const missing = all.filter((p) => value(p) == null).length;
+    const inPlay = T.chipsInPlay(game);
+    const diff = total - inPlay;
+    $('count-sum').replaceChildren(
+      el('div', { class: 'count-totals' }, [
+        el('span', {}, [tr('Counted so far'), el('strong', {}, chips(total))]),
+        el('span', {}, [tr('Chips in play'), el('strong', {}, chips(inPlay))]),
+      ]),
+      el('div', { class: missing ? 'count-diff muted' : diff ? 'count-diff bad' : 'count-diff good' },
+        missing ? (missing === 1 ? tr('1 player not counted yet') : tr('{n} players not counted yet', { n: missing })) : !diff ? tr('Adds up') : diff > 0 ? tr('{chips} too many', { chips: chips(diff) }) : tr('{chips} missing', { chips: chips(-diff) })),
+    );
+  }
+  renderCountSum();
+
+  $('count-cancel').onclick = () => dlg.close();
+  $('count-save').onclick = () => {
+    dlg.close();
+    const stacks = typed();
+    if (!Object.keys(stacks).length) return;
+    T.countStacks(game, stacks, Date.now());
+    afterChange({ showMoves: false });
+    toast(tr('Chips counted'), { label: tr('Undo'), onclick: undo });
+  };
+  dlg.showModal();
+  if (only) list[0]?.focus();
+}
+$('count-btn').addEventListener('click', () => openCount());
+$('g-count').addEventListener('click', () => {
+  $('settings-dialog').close();
+  openCount();
+});
+
 // ---------- tables ----------
 
 let selected = null; // { table, seat } tapped first when moving someone by hand
+let tableView = loadTableView();
+const VIEWS = [['drawn', 'Tables'], ['grid', 'List']];
+const TABLE_ASPECT = 1.5; // the drawn table's box, as in .poker-table's aspect-ratio
 
 function selectSeat(s) {
   selected = s;
@@ -1052,6 +1154,11 @@ function renderTables() {
   }
   const who = selected && T.inPlay(game).find((p) => p.table === selected.table && p.seat === selected.seat);
   $('tables-tip').textContent = who ? tr('Now tap the new seat for {name}', { name: who.name }) : tr('To move someone by hand, tap them, then the new seat');
+  $('table-view').replaceChildren(
+    ...VIEWS.map(([v, label]) => el('button', { type: 'button', 'aria-pressed': String(tableView === v), onclick: () => { tableView = v; saveTableView(v); renderTables(); } }, tr(label))),
+  );
+  $('tables-grid').classList.toggle('drawn', tableView === 'drawn');
+  if (tableView === 'drawn') return $('tables-grid').replaceChildren(...open.map((t) => drawnTable(t, seats, moving)));
   $('tables-grid').replaceChildren(
     ...open.map((t) => {
       const here = T.inPlay(game).filter((p) => p.table === t.n);
@@ -1072,6 +1179,38 @@ function renderTables() {
       ]);
     }),
   );
+}
+
+// One table seen from above: the felt, the rail, and the seats round the edge.
+function drawnTable(t, seats, moving) {
+  const here = T.inPlay(game).filter((p) => p.table === t.n);
+  const max = Math.max(seats, ...here.map((p) => p.seat));
+  const leaders = new Set(T.chipLeader(game).map((p) => p.id));
+  const moveOf = new Map(game.pending?.moves.map((m) => [m.id, m.to]) ?? []);
+  const markers = seatPositions(max, TABLE_ASPECT).map(({ seat, x, y }) => {
+    const p = here.find((q) => q.seat === seat);
+    const isSel = selected && selected.table === t.n && selected.seat === seat;
+    const to = p && moveOf.get(p.id);
+    const cls = ['seat-marker', p ? '' : 'empty', isSel ? 'selected' : selected ? 'target' : '', p && leaders.has(p.id) ? 'leader' : '', to ? 'moving' : ''].filter(Boolean).join(' ');
+    const label = p ? [tr('Seat {n}', { n: seat }), p.name, p.stack != null ? tr('{chips} chips', { chips: chips(p.stack) }) : '', to ? tr('moves to table {t}, seat {s}', { t: to.table, s: to.seat }) : ''].filter(Boolean).join(', ') : tr('Seat {n}, empty', { n: seat });
+    return el('button', { type: 'button', class: cls, style: `left: ${x}%; top: ${y}%`, 'data-seat': seat, 'aria-label': label, onclick: () => tapSeat({ table: t.n, seat }, p) }, p
+      ? [
+          el('span', { class: 'marker-seat' }, String(seat)),
+          el('span', { class: 'marker-name' }, p.name),
+          p.stack != null ? el('span', { class: 'marker-stack' }, chips(p.stack)) : null,
+          to ? el('span', { class: 'marker-move' }, `→ ${to.table === t.n ? to.seat : `${tr('T{n}', { n: to.table })} · ${to.seat}`}`) : null,
+        ]
+      : [el('span', { class: 'marker-seat' }, String(seat))]);
+  });
+  return el('div', { class: 'drawn-table' }, [
+    el('div', { class: selected ? 'poker-table picking' : 'poker-table' }, [
+      el('div', { class: 'felt' }, [
+        el('span', { class: 'felt-name' }, tr('Table {n}', { n: t.n })),
+        el('span', { class: 'felt-count' }, here.length === 1 ? tr('1 player') : tr('{n} players', { n: here.length })),
+      ]),
+      ...markers,
+    ]),
+  ]);
 }
 
 function tapSeat(seat, p) {

@@ -49,6 +49,10 @@ async function scene(scheme, device = phone) {
       Object.assign(by(name), { status: 'out', outBy: by(killer).id, outLevel: level, outAt: now - (60 - i * 10) * 60000 }));
     const out = t.players.filter((p) => p.status === 'out').sort((a, b) => a.outAt - b.outAt);
     out.forEach((p, i) => (p.place = t.players.length - i));
+    // Counted at the break after level 4
+    const stacks = { Nora: 41200, Emil: 28600, Jakob: 23400, Ella: 31800, Noah: 9800, Sofie: 26500, Lukas: 14300, Ingrid: 18900, Maja: 22100, Thea: 12700, Filip: 7500 };
+    for (const [name, stack] of Object.entries(stacks)) Object.assign(by(name), { stack, stackLevel: 4 });
+    t.counts = [{ at: now - 30 * 60000, level: 4, total: Object.values(stacks).reduce((a, b) => a + b, 0) }];
     localStorage.setItem('propoker.tournament', JSON.stringify(t));
     localStorage.setItem('propoker.seen', String(now));
   });

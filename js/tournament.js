@@ -3,6 +3,10 @@
 //
 // The functions change the tournament `t` in place; the app saves it after.
 // Anything that changes players or tables first saves a copy for Undo.
+//
+// Chip counts: at a break the organiser types in each stack. A player's
+// `stack` is the last count (null: not counted), kept up to date by rebuys and
+// add-ons until the next count; `stackLevel` is the level it was counted in.
 
 import { buildLevels, levelNumber } from './blinds.js';
 import { seatAll, seatOne } from './tables.js';
@@ -15,13 +19,13 @@ export const newId = () => `p${Date.now().toString(36)}${(lastId++).toString(36)
 export function createTournament(setup, now, rng = Math.random) {
   const { players: list, knownNames, ...settings } = setup;
   const levels = (setup.levels?.length ? setup.levels : buildLevels(setup)).map((l) => ({ ...l }));
-  const base = list.map((p) => ({ id: p.id, name: p.name, status: 'in', rebuys: 0, addOn: false, paid: false, place: null, outBy: null, outLevel: null, outAt: null, chipsOut: 0 }));
+  const base = list.map((p) => ({ id: p.id, name: p.name, status: 'in', rebuys: 0, addOn: false, paid: false, place: null, outBy: null, outLevel: null, outAt: null, chipsOut: 0, stack: null, stackLevel: null }));
   const { tables, players } = seatAll(base, settings.seatsPerTable, settings.randomSeats, rng);
-  return { v: 1, startedAt: now, settings: structuredClone(settings), levels, clock: { levelIndex: 0, levelMs: 0, runningSince: null }, players, tables, history: [], finished: false, deal: null };
+  return { v: 1, startedAt: now, settings: structuredClone(settings), levels, clock: { levelIndex: 0, levelMs: 0, runningSince: null }, players, tables, history: [], finished: false, deal: null, counts: [] };
 }
 
 function snapshot(t) {
-  t.history.push(structuredClone({ players: t.players, tables: t.tables, finished: t.finished, deal: t.deal }));
+  t.history.push(structuredClone({ players: t.players, tables: t.tables, finished: t.finished, deal: t.deal, counts: t.counts ?? [] }));
   if (t.history.length > HISTORY) t.history.shift();
 }
 
@@ -58,7 +62,7 @@ export function knockOut(t, id, byId, now) {
   const p = player(t, id);
   if (!p || p.status !== 'in') return;
   snapshot(t);
-  Object.assign(p, { status: 'out', outBy: byId ?? null, outLevel: currentLevelNumber(t), outAt: now });
+  Object.assign(p, { status: 'out', outBy: byId ?? null, outLevel: currentLevelNumber(t), outAt: now, stack: null, stackLevel: null });
   recomputePlaces(t);
 }
 
@@ -67,7 +71,7 @@ export function leave(t, id, chipsStay, now) {
   const p = player(t, id);
   if (!p || p.status !== 'in') return;
   snapshot(t);
-  Object.assign(p, { status: 'left', outBy: null, outLevel: currentLevelNumber(t), outAt: now, chipsOut: chipsStay ? 0 : boughtChips(t, p) });
+  Object.assign(p, { status: 'left', outBy: null, outLevel: currentLevelNumber(t), outAt: now, chipsOut: chipsStay ? 0 : boughtChips(t, p), stack: null, stackLevel: null });
   recomputePlaces(t);
 }
 
@@ -81,7 +85,8 @@ export function rebuy(t, id, rng = Math.random) {
     const seat = seatOne(t.players, t.tables, t.settings.seatsPerTable, rng);
     t.tables = seat.tables;
     Object.assign(p, { status: 'in', place: null, outBy: null, outLevel: null, outAt: null, chipsOut: 0, table: seat.table, seat: seat.seat });
-  }
+    freshStack(t, p, t.settings.rebuy.chips);
+  } else addToStack(p, t.settings.rebuy.chips);
   recomputePlaces(t);
 }
 
@@ -91,6 +96,7 @@ export function setAddOn(t, id, on) {
   if (!p || p.addOn === on) return;
   snapshot(t);
   p.addOn = on;
+  addToStack(p, on ? t.settings.addOn.chips : -t.settings.addOn.chips);
 }
 
 export function setPaid(t, id, paid) {
@@ -110,7 +116,8 @@ export function addLate(t, name, rng = Math.random) {
   snapshot(t);
   const seat = seatOne(t.players, t.tables, t.settings.seatsPerTable, rng);
   t.tables = seat.tables;
-  const p = { id: newId(), name: name.trim(), status: 'in', rebuys: 0, addOn: false, paid: false, place: null, outBy: null, outLevel: null, outAt: null, chipsOut: 0, table: seat.table, seat: seat.seat, late: true };
+  const p = { id: newId(), name: name.trim(), status: 'in', rebuys: 0, addOn: false, paid: false, place: null, outBy: null, outLevel: null, outAt: null, chipsOut: 0, stack: null, stackLevel: null, table: seat.table, seat: seat.seat, late: true };
+  freshStack(t, p, t.settings.startingChips);
   t.players.push(p);
   recomputePlaces(t);
   return p;
@@ -162,3 +169,44 @@ export function endWithDeal(t, shares, now) {
   });
   t.finished = true;
 }
+
+// ---------- chip counts ----------
+
+const counted = (p) => p.stack != null;
+function addToStack(p, chips) {
+  if (counted(p)) p.stack = Math.max(0, p.stack + chips);
+}
+// Someone new at the table (late, or back in): once there has been a count, their stack is known.
+function freshStack(t, p, chips) {
+  if (!t.counts?.length) return;
+  p.stack = chips;
+  p.stackLevel = currentLevelNumber(t);
+}
+
+// Saves a count: { id: stack } for the players counted. The others keep their last count.
+export function countStacks(t, stacks, now) {
+  const level = currentLevelNumber(t);
+  const ids = Object.keys(stacks).filter((id) => player(t, id)?.status === 'in' && Number.isFinite(stacks[id]));
+  if (!ids.length) return;
+  snapshot(t);
+  for (const id of ids) Object.assign(player(t, id), { stack: stacks[id], stackLevel: level });
+  t.counts = [...(t.counts ?? []), { at: now, level, total: countedTotal(t) }];
+}
+
+export const countedTotal = (t) => inPlay(t).filter(counted).reduce((sum, p) => sum + p.stack, 0);
+
+// Counted chips minus the chips in play: 0 when it adds up. Null until everyone still in has a count.
+export function countDifference(t) {
+  const left = inPlay(t);
+  return left.length && left.every(counted) ? countedTotal(t) - chipsInPlay(t) : null;
+}
+
+// The players still in with the biggest counted stack (more than one on a tie).
+export function chipLeader(t) {
+  const left = inPlay(t).filter((p) => counted(p) && p.stack > 0);
+  const top = Math.max(...left.map((p) => p.stack));
+  return left.filter((p) => p.stack === top);
+}
+
+// A stack in whole big blinds.
+export const stackInBB = (stack, bb) => (bb ? Math.round(stack / bb) : null);

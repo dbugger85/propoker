@@ -239,7 +239,7 @@ Same warm off-white page in light and navy `#0a0f1c` in dark, the same glass var
 - Built in this session: everything in section 7, with README screenshots (`npm run screenshots`). Published as the public repo dbugger85/propoker, live on GitHub Pages at https://dbugger85.github.io/propoker/ (no own domain yet).
 - Next (owner's wish 2026-10-16): a drawn **table view** and **chip counts at breaks**. Planned in section 10, not built yet.
 
-## 10. Next: table view and chip counts (planned 2026-10-16, not built)
+## 10. Table view and chip counts (planned 2026-10-16, built 2026-10-16)
 
 Two features that fit together: the table view shows each seat's latest chip count. Build the chip counts first (smaller, and the table view then has something to show), then the table view. Each step can be opened and tried.
 
@@ -312,3 +312,13 @@ Two features that fit together: the table view shows each seat's latest chip cou
 6. Tablet layouts, the grid/drawn toggle.
 7. Stacks and leader on the drawn table; pending moves on it.
 8. e2e, screenshots, README, CLAUDE.md, this section's status → built.
+
+### 10.4 Built (2026-10-16): what changed from the plan
+- **Chip leader on the clock page**: as the sub-line of the Players fact tile ("Chip leader: Nora, 41 200"), not a fifth tile or the status line, so the grid stays even.
+- **Count popup boxes start empty** with the last count shown faintly inside (and "Last count …, level n" under the name), so a box left empty clearly keeps the old count and the level of a count isn't changed by just pressing Save.
+- **"Counted so far" vs "Chips in play"**: until everyone still in has a count, it says "n players not counted yet" instead of a difference.
+- **Late entries and players back in after a rebuy** get a known stack (starting or rebuy chips) once there has been a count; before the first count nobody has one.
+- **The drawn/list choice** is kept per device (`propoker.tableView`), not in the tournament, so it stays from night to night. The toggle reads **Tables / List**.
+- `seatPositions` lives in `tables.js` (no new file).
+- `sw.js` now also caches `chips.js` (it was missing, so the app didn't open offline before the first online visit cached it).
+

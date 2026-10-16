@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { seatAll, seatOne, plan, applyMoves, swapSeats, freeSeats } from '../js/tables.js';
+import { seatAll, seatOne, plan, applyMoves, swapSeats, freeSeats, seatPositions } from '../js/tables.js';
 
 // A predictable "random"
 const seq = (seed = 1) => () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646;
@@ -72,4 +72,22 @@ test('swapping seats by hand', () => {
   const { players } = seatAll(people(2), 9, false);
   const swapped = swapSeats(players, { table: 1, seat: 1 }, { table: 1, seat: 5 });
   assert.deepEqual(swapped.map((p) => p.seat), [5, 2]);
+});
+
+test('seats round the drawn table', () => {
+  const aspect = 1.5;
+  for (let n = 2; n <= 12; n++) {
+    const spots = seatPositions(n, aspect);
+    assert.equal(spots.length, n);
+    assert.ok(spots.every((s) => s.x > 0 && s.x < 100 && s.y > 0 && s.y < 100), `inside the box with ${n}`);
+    // Neighbours about the same distance apart (in real proportions)
+    const gaps = spots.map((s, i) => {
+      const t = spots[(i + 1) % n];
+      return Math.hypot(((t.x - s.x) * aspect) / 100, (t.y - s.y) / 100);
+    });
+    if (n >= 4) assert.ok(Math.min(...gaps) / Math.max(...gaps) > 0.8, `even with ${n}: ${gaps}`);
+  }
+  const [one, two] = seatPositions(9, aspect);
+  assert.deepEqual([Math.round(one.x), Math.round(one.y)], [50, 86], 'seat 1 at the bottom middle');
+  assert.ok(two.x < one.x, 'then clockwise, to the left');
 });

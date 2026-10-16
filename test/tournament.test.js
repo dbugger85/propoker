@@ -88,3 +88,45 @@ test('the share text', () => {
   assert.match(text, /P1: \+400 kr/);
   assert.match(text, /P0: -200 kr/);
 });
+
+test('chip counts: totals, difference, leader', () => {
+  const t = T.createTournament(setup(3), 0);
+  assert.equal(T.countDifference(t), null, 'nobody counted yet');
+  assert.deepEqual(T.chipLeader(t), []);
+  T.countStacks(t, { p0: 12000, p1: 9000 }, 5);
+  assert.equal(T.countedTotal(t), 21000);
+  assert.equal(T.countDifference(t), null, 'p2 not counted yet');
+  assert.equal(T.player(t, 'p0').stackLevel, 1);
+  T.countStacks(t, { p2: 8000 }, 6);
+  assert.equal(T.player(t, 'p0').stack, 12000, 'the others keep their count');
+  assert.equal(T.countDifference(t), -1000, '29 000 counted, 30 000 in play');
+  assert.deepEqual(T.chipLeader(t).map((p) => p.id), ['p0']);
+  assert.deepEqual(t.counts.map((c) => c.total), [21000, 29000]);
+  T.countStacks(t, { p1: 12000 }, 7);
+  assert.deepEqual(T.chipLeader(t).map((p) => p.id), ['p0', 'p1'], 'a tie');
+  assert.equal(T.stackInBB(23400, 800), 29);
+});
+
+test('chip counts: rebuys, add-ons, knockouts, late entries and undo', () => {
+  const t = T.createTournament(setup(3), 0);
+  T.rebuy(t, 'p0');
+  assert.equal(T.player(t, 'p0').stack, null, 'no count, no stack');
+  T.countStacks(t, { p0: 15000, p1: 10000, p2: 5000 }, 1);
+  T.rebuy(t, 'p2');
+  assert.equal(T.player(t, 'p2').stack, 15000, 'a rebuy adds its chips');
+  T.setAddOn(t, 'p1', true);
+  assert.equal(T.player(t, 'p1').stack, 25000);
+  T.setAddOn(t, 'p1', false);
+  assert.equal(T.player(t, 'p1').stack, 10000);
+  T.knockOut(t, 'p2', 'p0', 2);
+  assert.equal(T.player(t, 'p2').stack, null);
+  T.rebuy(t, 'p2');
+  assert.equal(T.player(t, 'p2').stack, 10000, 'back in with the rebuy chips');
+  const late = T.addLate(t, 'Zed');
+  assert.equal(late.stack, 10000, 'a late entry starts with the starting stack');
+  T.countStacks(t, { p0: 1 }, 3);
+  assert.equal(t.counts.length, 2);
+  T.undo(t);
+  assert.equal(T.player(t, 'p0').stack, 15000, 'undo takes the count back');
+  assert.equal(t.counts.length, 1);
+});
