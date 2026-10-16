@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildLevels, roundBlind, smallBlind, nextLevel, ensureLevel, levelNumber, nextPlay } from '../js/blinds.js';
+import { buildLevels, roundBlind, smallBlind, nextLevel, ensureLevel, levelNumber, nextPlay, totalMinutes, expectedChips } from '../js/blinds.js';
 
 const blinds = (levels) => levels.map((l) => (l.break ? 'break' : `${l.sb}/${l.bb}`));
 
@@ -62,4 +62,24 @@ test('level numbers skip breaks', () => {
   assert.equal(levelNumber(levels, 4), 4, 'the break after level 4');
   assert.equal(levelNumber(levels, 5), 5);
   assert.equal(nextPlay(levels, 3).bb, 600);
+});
+
+test('a tournament length works out the blinds', () => {
+  const setup = { preset: 'standard', startingChips: 10000, targetHours: 3, players: 10, rebuy: { on: true, chips: 10000 }, addOn: { on: true, chips: 15000 } };
+  const levels = buildLevels(setup);
+  assert.equal(totalMinutes(levels), 170, 'about 3 hours with 20-minute levels and breaks');
+  const bbs = levels.filter((l) => !l.break).map((l) => l.bb);
+  assert.equal(bbs[0], 100);
+  assert.equal(bbs.at(-1), 15000, 'ends near 1/20 of the chips (270 000 / 20)');
+  assert.deepEqual(bbs, [...new Set(bbs)].sort((a, b) => a - b), 'no duplicates, rising');
+  for (const bb of bbs) assert.equal(bb % 25, 0);
+  // More time: more and smaller steps, same end
+  const longer = buildLevels({ ...setup, targetHours: 5 }).filter((l) => !l.break);
+  assert.ok(longer.length > bbs.length);
+  assert.equal(longer.at(-1).bb, 15000);
+  // Too few steps to fill the time: longer levels instead
+  const two = buildLevels({ ...setup, players: 2, rebuy: { on: false }, addOn: { on: false }, targetHours: 6 });
+  assert.ok(two[0].minutes > 20);
+  assert.ok(Math.abs(totalMinutes(two) - 360) <= 30);
+  assert.equal(expectedChips({ players: [], startingChips: 1000 }), 8000, '8 players until 2 are added');
 });

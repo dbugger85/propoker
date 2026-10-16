@@ -25,6 +25,7 @@ export const DEFAULT_SETUP = {
   levelMinutes: 20,
   breakMinutes: 10,
   anteStyle: 'none',
+  targetHours: null, // how long the tournament should last; the blinds are then worked out to fit
   levels: [],
   startStack: null, // your own starting chips [{ color, value, count }], or the app's suggestion
   customLevels: null, // your own levels, kept while you look at a preset, so Custom brings them back

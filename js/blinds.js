@@ -31,23 +31,82 @@ export const playLevel = (bb, minutes, smallest, ante = 0) => ({ sb: smallBlind(
 
 // The full list of levels and breaks for a preset.
 // `anteFromLevel`: the first level with an ante (default: the first level after the first break).
-export function buildLevels({ preset = 'standard', startingChips = 10000, smallestChip = 25, levelMinutes, breakMinutes, anteStyle = 'none', anteFromLevel } = {}) {
+// `targetHours`: how long the tournament should last; the blinds are then worked out to fit (see `fitLevels`).
+export function buildLevels(o = {}) {
+  const { preset = 'standard', startingChips = 10000, smallestChip = 25, levelMinutes, breakMinutes, anteStyle = 'none', anteFromLevel, targetHours } = o;
   const p = PRESETS[preset] ?? PRESETS.standard;
   const minutes = levelMinutes || p.minutes;
   const unit = startingChips / p.stackInBB;
+  const bbs = targetHours ? null : [];
+  if (!targetHours) {
+    let last = 0;
+    for (const u of p.ladder) {
+      const bb = roundBlind(u * unit, smallestChip);
+      if (bb <= last) continue; // two rounded to the same amount
+      bbs.push((last = bb));
+    }
+  }
+  const fit = targetHours ? fitLevels({ ...o, first: roundBlind(unit, smallestChip), minutes, breakMinutes: breakMinutes || p.breakMinutes, breakEvery: p.breakEvery }) : { bbs, minutes };
   const anteFrom = anteFromLevel || p.breakEvery + 1;
   const levels = [];
-  let n = 0;
-  let last = 0;
-  for (const u of p.ladder) {
-    const bb = roundBlind(u * unit, smallestChip);
-    if (bb <= last) continue; // two rounded to the same amount
-    last = bb;
-    n++;
+  fit.bbs.forEach((bb, i) => {
+    const n = i + 1;
     if (n > 1 && (n - 1) % p.breakEvery === 0) levels.push({ break: true, minutes: breakMinutes || p.breakMinutes });
-    levels.push(playLevel(bb, minutes, smallestChip, n >= anteFrom ? anteFor(bb, anteStyle, smallestChip) : 0));
-  }
+    levels.push(playLevel(bb, fit.minutes, smallestChip, n >= anteFrom ? anteFor(bb, anteStyle, smallestChip) : 0));
+  });
   return levels;
+}
+
+// Rough chips in play near the end: every starting stack, plus about half the
+// players rebuying once and most taking the add-on. Before 2 players are added, 8 are assumed.
+export function expectedChips({ players = [], startingChips = 10000, rebuy, addOn } = {}) {
+  const count = Array.isArray(players) ? players.length : players;
+  const n = count >= 2 ? count : 8;
+  return n * startingChips + (rebuy?.on ? Math.round(n * 0.5) * (rebuy.chips || 0) : 0) + (addOn?.on ? Math.round(n * 0.75) * (addOn.chips || 0) : 0);
+}
+
+// Big blinds that look right (100, 150, 200, 250, 300, 400, 500, 600, 750, 800, 1 000 …),
+// from `first` up to the first one at or above `end`; all multiples of the smallest chip.
+export function niceBlinds(first, end, smallest = 25) {
+  const out = [first];
+  for (let p = 1; out.at(-1) < end && p < 1e12; p *= 10) {
+    for (const m of [1, 1.5, 2, 2.5, 3, 4, 5, 6, 7.5, 8]) {
+      const v = m * p;
+      if (v > out.at(-1) && v % smallest === 0) out.push(v);
+      if (out.at(-1) >= end) break;
+    }
+  }
+  return out;
+}
+
+// Minutes for n play levels, with a break after every `breakEvery` levels.
+export const fitMinutes = (n, minutes, breakEvery, breakMinutes) => n * minutes + Math.floor((n - 1) / breakEvery) * breakMinutes;
+
+// The big blinds for a tournament of `targetHours`: as many levels as fit in
+// the time, rising from the first big blind until the big blind is about 1/20
+// of the chips in play (the usual point where a tournament is over).
+// With too few steps to fill the time, the levels get longer instead.
+export function fitLevels({ targetHours, first, minutes, breakMinutes, breakEvery, smallestChip = 25, ...o }) {
+  const target = targetHours * 60;
+  const end = Math.max(first * 2, expectedChips(o) / 20);
+  const nice = niceBlinds(first, end, smallestChip);
+  let n = 2;
+  while (n < 60 && Math.abs(fitMinutes(n + 1, minutes, breakEvery, breakMinutes) - target) <= Math.abs(fitMinutes(n, minutes, breakEvery, breakMinutes) - target)) n++;
+  if (n > nice.length) {
+    n = nice.length;
+    minutes = Math.max(1, Math.round((target - Math.floor((n - 1) / breakEvery) * breakMinutes) / n));
+  }
+  // Each step about the same size: the nice value closest to an even rise, always higher than the last
+  const top = nice.at(-1);
+  const bbs = [];
+  for (let i = 0; i < n; i++) {
+    const want = Math.log(first * (top / first) ** (i / (n - 1)));
+    const left = nice.length - (n - i); // leave enough values for the levels still to come
+    let best = nice.findIndex((v) => v > (bbs.at(-1) ?? 0));
+    for (let k = best; k <= left; k++) if (Math.abs(Math.log(nice[k]) - want) < Math.abs(Math.log(nice[best]) - want)) best = k;
+    bbs.push(nice[best]);
+  }
+  return { bbs, minutes };
 }
 
 // The level after the last one in the list, when a game outlasts it: 1.5× the big blind.

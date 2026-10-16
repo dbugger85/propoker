@@ -324,7 +324,7 @@ label.field input { margin-top: 6px; }
 /* A number: the words on the left, a short box on the right */
 label.field.inline { display: grid; grid-template-columns: 1fr 104px; align-items: center; gap: 12px; margin: 12px 0; }
 label.field.inline input { margin: 0; }
-label.field .sub, .choices .sub { display: block; margin-top: 2px; color: var(--muted); font-size: 14px; font-weight: 400; }
+.field .sub, .choices .sub { display: block; margin-top: 2px; color: var(--muted); font-size: 14px; font-weight: 400; }
 /* Words on the left, a picker button on the right */
 .field.inline-picker { display: grid; grid-template-columns: 1fr minmax(104px, auto); align-items: center; gap: 12px; margin: 12px 0; font-weight: 500; }
 /* The picker as wide as the number boxes (at least), its right edge in line with theirs */

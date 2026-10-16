@@ -146,6 +146,16 @@ try {
   assert.match(await page.textContent('#s-levels li:nth-child(4)'), /3\s*150 \/ 300/, 'level 3 comes after the break');
   await page.click('#s-presets button:has-text("Standard")');
 
+  // A tournament length: the blinds are worked out to fit, then back to the plain structure
+  await page.click('#s-target button');
+  await page.click('#pick-list button:has-text("3 h")');
+  assert.match(await page.textContent('#s-length'), /levels of 20 min, 2 h 50 min in all/);
+  assert.equal(await page.textContent('#s-target button'), '3 h');
+  await shot('2-length', false);
+  await page.click('#s-target button');
+  await page.click('#pick-list button:has-text("Not set")');
+  assert.match(await page.textContent('#s-length'), /The last level repeats/);
+
   await page.click('#s-edit-payouts');
   await page.click('#p-modes button:text-is("Fixed")');
   await page.fill('#p-rows input >> nth=0', '500');

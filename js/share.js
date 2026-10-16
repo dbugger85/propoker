@@ -4,7 +4,7 @@
 // (deflate) and put after "#" in the address, so it never goes to a server.
 // No DOM code here.
 
-const KEYS = ['currency', 'buyIn', 'fee', 'startingChips', 'smallestChip', 'chipSet', 'startStack', 'preset', 'levelMinutes', 'breakMinutes', 'anteStyle', 'levels', 'customLevels', 'rebuy', 'addOn', 'lateUntilLevel', 'seatsPerTable', 'randomSeats', 'payouts'];
+const KEYS = ['currency', 'buyIn', 'fee', 'startingChips', 'smallestChip', 'chipSet', 'startStack', 'preset', 'levelMinutes', 'breakMinutes', 'anteStyle', 'targetHours', 'levels', 'customLevels', 'rebuy', 'addOn', 'lateUntilLevel', 'seatsPerTable', 'randomSeats', 'payouts'];
 
 const toB64 = (bytes) => btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 const fromB64 = (text) => Uint8Array.from(atob(text.replace(/-/g, '+').replace(/_/g, '/')), (c) => c.charCodeAt(0));

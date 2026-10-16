@@ -223,9 +223,13 @@ async function shareOut(text) {
 // ---------- setup ----------
 
 let showAllLevels = false;
+const TARGETS = [1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5, 6, 7, 8];
+const hoursShort = (h) => tr('{h} h', { h: String(Math.floor(h)) + (h % 1 ? '½' : '') });
 const ANTES = [['none', 'None'], ['bb', 'BB ante'], ['classic', 'Classic']];
 
 function saveS() {
+  // With a tournament length, the blinds follow the players, chips, rebuys and minutes
+  if (setup.targetHours && setup.preset !== 'custom') setup.levels = buildLevels(setup);
   // Your own levels are kept on their own, so looking at a preset never loses them
   if (setup.preset === 'custom') setup.customLevels = structuredClone(setup.levels);
   saveSetup(setup);
@@ -280,6 +284,17 @@ function renderSetupParts({ chipRows = true } = {}) {
   );
   if (chipRows) renderChipSet();
   else renderStacks();
+  $('s-target').replaceChildren(
+    picker(setup.targetHours ? hoursShort(setup.targetHours) : tr('Not set'), async () => {
+      const v = await pickFrom(tr('Tournament length'), [{ value: 0, label: tr('Not set'), sub: tr('Levels from the structure') }, ...TARGETS.map((h) => ({ value: h, label: hoursShort(h) }))], setup.targetHours || 0);
+      if (v == null) return;
+      setup.targetHours = v || null;
+      if (v && setup.preset === 'custom') return choosePreset('standard');
+      rebuildLevels();
+      saveS();
+      renderSetupParts();
+    }),
+  );
   $('s-presets').replaceChildren(
     ...[...PRESET_ORDER, 'custom'].map((p) =>
       el('button', { type: 'button', 'aria-pressed': String(setup.preset === p), onclick: () => choosePreset(p) }, [
@@ -297,7 +312,10 @@ function renderSetupParts({ chipRows = true } = {}) {
   const hidden = setup.levels.length - 8;
   $('s-levels').append(...(hidden > 0 ? [el('li', {}, el('button', { type: 'button', class: 'levels-more link', onclick: () => { showAllLevels = !showAllLevels; renderSetupParts(); } }, showAllLevels ? tr('Show fewer') : tr('Show all {n} rows', { n: setup.levels.length })))] : []));
   const plays = setup.levels.filter((l) => !l.break).length;
-  $('s-length').textContent = tr('{n} levels, {time} in all. The last level repeats, 1.5× bigger, if the game goes on', { n: plays, time: hoursText(totalMinutes(setup.levels)) });
+  const fitted = setup.targetHours && setup.preset !== 'custom';
+  $('s-length').textContent = fitted
+    ? tr('{n} levels of {m} min, {time} in all. By the last level the big blind is about 1/20 of all chips (counting {p} players and some rebuys and add-ons), so the game should be over', { n: plays, m: setup.levels.find((l) => !l.break)?.minutes, time: hoursText(totalMinutes(setup.levels)), p: setup.players.length >= 2 ? setup.players.length : 8 })
+    : tr('{n} levels, {time} in all. The last level repeats, 1.5× bigger, if the game goes on', { n: plays, time: hoursText(totalMinutes(setup.levels)) });
   $('s-rebuy-box').hidden = !setup.rebuy.on;
   $('s-addon-box').hidden = !setup.addOn.on;
 
@@ -1126,7 +1144,7 @@ function renderPlayers() {
 function openActions(id) {
   const p = T.player(game, id);
   const dlg = $('action-dialog');
-  // The name with a pencil next to it, to rename (also a button further down)
+  // The name with a pencil next to it, to rename
   const pencil = el('button', { type: 'button', class: 'icon rename', 'aria-label': tr('Rename {name}', { name: p.name }), onclick: () => { dlg.close(); renameFlow(p); } });
   pencil.innerHTML = PENCIL;
   $('action-title').replaceChildren(el('span', {}, p.name), pencil);
@@ -1146,13 +1164,12 @@ function openActions(id) {
   if (p.rebuys) buttons.push(act(p.status === 'in' && lastRebuy && lastRebuy !== 'stay' ? tr('Take back the rebuy (back out)') : tr('Take back a rebuy'), () => takeBackRebuyFlow(p)));
   if (p.status !== 'in') {
     buttons.push(act(tr('Change place'), () => placeFlow(p)));
-    buttons.push(act(tr('Knocked out by…'), () => outByFlow(p)));
+    buttons.push(act(tr('Knocked out by'), () => outByFlow(p)));
     buttons.push(act(tr('Not out after all'), () => backInFlow(p)));
   }
-  buttons.push(act(tr('Payment…'), () => openPayment(p)));
+  buttons.push(act(tr('Payment'), () => openPayment(p)));
   if (p.status === 'in') buttons.push(act(tr('Change seat'), () => { goToPage(2); selectSeat({ table: p.table, seat: p.seat }); }));
-  if (p.status === 'in') buttons.push(act(tr('Chip count…'), () => openCount(p.id)));
-  buttons.push(act(tr('Rename'), () => renameFlow(p)));
+  if (p.status === 'in') buttons.push(act(tr('Chip count'), () => openCount(p.id)));
   if (p.status === 'in') buttons.push(act(tr('Left the game'), () => leaveFlow(p)));
   $('action-buttons').replaceChildren(...buttons);
   $('action-cancel').onclick = () => dlg.close();
@@ -1182,7 +1199,7 @@ function openPayment(p) {
   };
   $('action-buttons').replaceChildren(...[
     due ? act(tr('Paid everything ({sum})', { sum: cash(due) }), () => set(bought), 'primary') : null,
-    act(tr('Paid part…'), async () => {
+    act(tr('Paid part'), async () => {
       const text = await ask({ title: tr('How much has {name} paid in all?', { name: p.name }), text: tr('Bought for {sum}', { sum: cash(bought) }), input: S().currency, value: paid ? groupDigits(paid) : '', ok: tr('Save'), numeric: true });
       if (!text) return;
       const amount = Number(text.replace(/\D/g, ''));
