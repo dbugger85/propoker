@@ -236,5 +236,5 @@ Same warm off-white page in light and navy `#0a0f1c` in dark, the same glass var
 - Name changed to **ProPoker** (folder `~/Work/propoker`, storage keys `propoker.*`).
 - Thousands are split by a space that never wraps (10 000), in both languages, for chips and money.
 - Icon in PrimeTime's style (gradient, glass disc with a rim light, a white symbol), with a spade; the disc and spade a little larger, the spade a little higher.
-- Built in this session: everything in section 7 except the README screenshots script (`test/screenshots.mjs`) and the deploy (repo, Pages, domain).
+- Built in this session: everything in section 7, with README screenshots (`npm run screenshots`). Published as the public repo dbugger85/propoker, live on GitHub Pages at https://dbugger85.github.io/propoker/ (no own domain yet).
 
