@@ -439,6 +439,18 @@ legend + * { clear: both; }
 .last-head { display: flex; justify-content: space-between; gap: 8px; }
 .last-title { margin: 4px 0 2px; font: 700 22px/1.15 "Barlow Condensed", system-ui, sans-serif; text-transform: uppercase; }
 .intro { margin: 20px 0 0; color: var(--muted); font-size: 15px; line-height: 1.5; }
+/* The promise, like PrimeTime's: keep it true (no analytics, cookies or ad scripts, ever) */
+.promise { list-style: none; display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 14px 0 0; padding: 0; font-size: 15px; font-weight: 600; }
+.promise li { white-space: nowrap; }
+.promise li::before { content: "✓"; margin-right: 5px; color: var(--green); }
+/* The tour: pictures of the app, swiped sideways */
+.tour { margin-top: 20px; }
+.tour h3 { margin-top: 0; }
+.tour-row { display: flex; gap: 12px; margin: 0 -16px; padding: 4px 16px 10px; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; }
+.tour-row::-webkit-scrollbar { display: none; }
+.tour figure { flex: 0 0 auto; width: min(44vw, 190px); margin: 0; scroll-snap-align: start; }
+.tour img { display: block; width: 100%; height: auto; border-radius: 16px; border: 1px solid var(--glass-line); box-shadow: var(--shadow); background: var(--card); }
+.tour figcaption { margin-top: 8px; font-size: 14px; font-weight: 600; text-align: center; white-space: nowrap; color: var(--muted); }
 
 /* ---------- The clock: green felt glass with white text ---------- */
 .clock {
@@ -527,7 +539,7 @@ legend + * { clear: both; }
 .count-row { display: grid; grid-template-columns: 28px minmax(0, 1fr) 112px 52px; align-items: center; gap: 8px; min-height: 56px; border-top: 1px solid var(--line); }
 #count-rows > .count-row:first-child, .count-table + .count-row { border-top: 0; }
 .count-row .name { font-weight: 600; overflow-wrap: anywhere; line-height: 1.2; }
-.count-row .sub { display: block; font-size: 12px; font-weight: 400; color: var(--muted); }
+.count-row .sub { display: block; font-size: 12px; font-weight: 400; color: var(--muted); white-space: nowrap; }
 .count-row input { padding: 0 12px 0 6px; }
 .count-seat { font: 700 20px/1 "Barlow Condensed", system-ui, sans-serif; color: var(--muted); text-align: center; }
 .count-bb { font-variant-numeric: tabular-nums; white-space: nowrap; }
@@ -653,6 +665,9 @@ dialog.scrolling .dialog-buttons { margin: 0; padding: 12px 20px 20px; border-to
 #ask-dialog input { margin: 4px 0 8px; }
 #ask-text { margin: 0 0 8px; white-space: pre-line; }
 #action-text:empty { display: none; }
+#action-title { display: flex; align-items: center; gap: 4px; }
+#action-title button.rename { min-width: 44px; min-height: 44px; margin: -8px 0; }
+#action-title button.rename svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linejoin: round; }
 #action-buttons button { min-height: 52px; text-align: left; }
 /* A button that opens a list to pick from (instead of the phone's own dropdown) */
 button.picker { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; padding: 0 12px; text-align: left; }

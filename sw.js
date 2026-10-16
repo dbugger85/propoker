@@ -2,7 +2,7 @@
 // updates arrive straight away; if that fails or takes over 3 seconds, it uses
 // the copy saved on the phone. From Substitutor.
 
-const CACHE = 'propoker-v4';
+const CACHE = 'propoker-v5';
 const FILES = [
   './',
   './index.html',
@@ -26,6 +26,12 @@ const FILES = [
   './icons/apple-touch-icon.png',
   './fonts/inter.woff2',
   './fonts/barlow-condensed-700.woff2',
+  './screenshots/tour/phone-clock-light.webp',
+  './screenshots/tour/phone-tables.webp',
+  './screenshots/tour/phone-players.webp',
+  './screenshots/tour/phone-count.webp',
+  './screenshots/tour/phone-settle.webp',
+  './screenshots/tour/phone-chips.webp',
 ];
 
 self.addEventListener('install', (e) => {

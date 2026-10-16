@@ -2,8 +2,8 @@
 // (icons/preview.png). Run it when the look changes: npm run screenshots
 // A made-up poker night: 14 players at 2 tables, level 6 with 12:34 left,
 // three knocked out, a few rebuys and add-ons. Phone (390×844) light and dark,
-// and an iPad sideways (1180×820).
-import { spawn } from 'node:child_process';
+// and an iPad sideways (1180×820). Small WebP copies for the start page's tour go in screenshots/tour/.
+import { spawn, execFileSync } from 'node:child_process';
 import { chromium } from 'playwright-core';
 
 const ROOT = new URL('..', import.meta.url).pathname;
@@ -22,6 +22,7 @@ const SEED = `(() => { let s = 7; Math.random = () => ((s = (s * 16807) % 214748
 
 async function scene(scheme, device = phone) {
   const page = await browser.newPage({ ...device, colorScheme: scheme });
+  await page.clock.setFixedTime(new Date('2026-10-16T21:12:00')); // a Friday evening, for the clock times
   await page.addInitScript(SEED);
   await page.goto(BASE + '?lang=en');
   await page.evaluate(() => { localStorage.clear(); localStorage.setItem('propoker.installHidden', '1'); });
@@ -78,6 +79,15 @@ try {
       await page.screenshot({ path: out('phone-tables') });
       await toPage(page, 3);
       await page.screenshot({ path: out('phone-money') });
+      // The cog: the coming levels with their clock times, and the chip count
+      await page.click('#settings-btn');
+      await page.$eval('#g-levels', (e) => e.scrollIntoView({ block: 'start' }));
+      await page.waitForTimeout(300);
+      await page.screenshot({ path: out('phone-levels') });
+      await page.click('#g-count');
+      await page.waitForTimeout(300);
+      await page.screenshot({ path: out('phone-count') });
+      await page.click('#count-cancel');
       // The setup's chip set and payouts
       const setup = await browser.newPage({ ...phone, colorScheme: scheme });
       await setup.goto(BASE + '?lang=en');
@@ -119,6 +129,9 @@ try {
   await end.waitForTimeout(300);
   await end.waitForSelector('#screen-summary:not([hidden])');
   await end.screenshot({ path: out('phone-summary') });
+  await end.$eval('#sum-moves', (e) => e.parentElement.querySelector('h3:nth-of-type(1)') && e.scrollIntoView({ block: 'center' }));
+  await end.waitForTimeout(300);
+  await end.screenshot({ path: out('phone-settle') });
   await end.close();
 
   // iPad sideways
@@ -139,5 +152,9 @@ try {
 } finally {
   await browser.close();
   server.kill();
+}
+// Small copies for the tour on the start page
+for (const name of ['phone-clock-light', 'phone-tables', 'phone-players', 'phone-count', 'phone-settle', 'phone-chips']) {
+  execFileSync('magick', [out(name), '-quality', '72', `${ROOT}screenshots/tour/${name}.webp`]);
 }
 console.log('screenshots done');

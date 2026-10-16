@@ -674,6 +674,7 @@ function renderLevelList(ul, levels, { from = 0, now = -1, onEdit, onMove, limit
   ul.replaceChildren(...items);
 }
 
+const PENCIL = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4z"/><path d="M13.5 6.5l4 4"/></svg>';
 const GRIP = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg>';
 
 // Dragging a break: the row follows the finger, and the rows it passes make
@@ -1125,7 +1126,10 @@ function renderPlayers() {
 function openActions(id) {
   const p = T.player(game, id);
   const dlg = $('action-dialog');
-  $('action-title').textContent = p.name;
+  // The name with a pencil next to it, to rename (also a button further down)
+  const pencil = el('button', { type: 'button', class: 'icon rename', 'aria-label': tr('Rename {name}', { name: p.name }), onclick: () => { dlg.close(); renameFlow(p); } });
+  pencil.innerHTML = PENCIL;
+  $('action-title').replaceChildren(el('span', {}, p.name), pencil);
   const paidLine = paymentLine(p);
   $('action-text').textContent = p.status === 'in' ? [seatText(p), stackText(p.stack), paidLine].filter(Boolean).join(' · ') : paidLine;
   const act = (label, fn, cls = '') => el('button', { type: 'button', class: cls, onclick: () => { dlg.close(); fn(); } }, label);
@@ -1136,6 +1140,14 @@ function openActions(id) {
     if (S().addOn.on) buttons.push(p.addOn ? act(tr('Take back the add-on'), () => change(() => T.setAddOn(game, p.id, false))) : act(tr('Add-on'), () => doAddOn(p)));
   } else if (S().rebuy.on) {
     buttons.push(act(tr('Rebuy and back in'), () => doRebuy(p), 'primary'));
+  }
+  // Fixing mistakes, also long after
+  const lastRebuy = p.rebuyLog?.at(-1);
+  if (p.rebuys) buttons.push(act(p.status === 'in' && lastRebuy && lastRebuy !== 'stay' ? tr('Take back the rebuy (back out)') : tr('Take back a rebuy'), () => takeBackRebuyFlow(p)));
+  if (p.status !== 'in') {
+    buttons.push(act(tr('Change place'), () => placeFlow(p)));
+    buttons.push(act(tr('Knocked out by…'), () => outByFlow(p)));
+    buttons.push(act(tr('Not out after all'), () => backInFlow(p)));
   }
   buttons.push(act(tr('Payment…'), () => openPayment(p)));
   if (p.status === 'in') buttons.push(act(tr('Change seat'), () => { goToPage(2); selectSeat({ table: p.table, seat: p.seat }); }));
@@ -1244,6 +1256,35 @@ async function doAddOn(p) {
   toast(tr('Add-on for {name}: {chips} chips', { name: p.name, chips: chips(S().addOn.chips) }), { label: tr('Undo'), onclick: undo });
 }
 
+function takeBackRebuyFlow(p) {
+  const wasIn = p.status === 'in';
+  change(() => T.takeBackRebuy(game, p.id));
+  const now = T.player(game, p.id);
+  toast(wasIn && now.status !== 'in' ? tr('{name} is out again in {place}', { name: p.name, place: ord(now.place) }) : tr('Rebuy taken back for {name}', { name: p.name }), { label: tr('Undo'), onclick: undo });
+}
+
+// The place they finished in, by hand: the others out move to make room
+async function placeFlow(p) {
+  const out = game.players.filter((x) => x.status !== 'in').sort((a, b) => a.place - b.place);
+  const items = out.map((x) => ({ value: x.place, label: ord(x.place), sub: x === p ? p.name : tr('now {name}', { name: x.name }) }));
+  const place = await pickFrom(tr('Which place did {name} finish in?', { name: p.name }), items, p.place);
+  if (!place || place === p.place) return;
+  change(() => T.setPlace(game, p.id, place));
+  toast(tr('{name} is now {place}', { name: p.name, place: ord(place) }), { label: tr('Undo'), onclick: undo });
+}
+
+async function outByFlow(p) {
+  const others = game.players.filter((x) => x.id !== p.id);
+  const by = await pickFrom(tr('Who knocked {name} out?', { name: p.name }), others.map((x) => ({ value: x.id, label: x.name })), p.outBy, tr('Nobody'));
+  if (by === null) return;
+  change(() => T.setOutBy(game, p.id, by === SKIP ? null : by));
+}
+
+function backInFlow(p) {
+  change(() => T.backIn(game, p.id));
+  toast(tr('{name} is back in: {seat}', { name: p.name, seat: seatText(T.player(game, p.id)) }), { label: tr('Undo'), onclick: undo });
+}
+
 async function renameFlow(p) {
   const name = await ask({ title: tr('Rename {name}', { name: p.name }), input: tr('Player name'), value: p.name, ok: tr('Save') });
   if (!name) return;
@@ -1305,7 +1346,7 @@ function openCount(only) {
     inputs.set(p.id, input);
     rows.push(el('label', { class: 'count-row' }, [
       el('span', { class: 'count-seat' }, String(p.seat)),
-      el('span', { class: 'name' }, [p.name, p.stack != null ? el('span', { class: 'sub' }, tr('Last count {chips}, level {n}', { chips: chips(p.stack), n: p.stackLevel ?? '–' })) : null]),
+      el('span', { class: 'name' }, [p.name, p.stack != null ? el('span', { class: 'sub' }, tr('Counted in level {n}', { n: p.stackLevel ?? '–' })) : null]),
       input,
       inBB,
     ]));

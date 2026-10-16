@@ -291,6 +291,18 @@ try {
   await page.click('#toast-action'); // Undo
   assert.equal(await page.$$eval('#in-list li', (l) => l.length), 12);
 
+  // Rename during the tournament, with the pencil next to the name
+  await page.click('#in-list li:first-child button');
+  const oldName = await page.textContent('#action-title span');
+  await page.click('#action-title button.rename');
+  await page.fill('#ask-input', `${oldName} B`);
+  await page.click('#ask-ok');
+  assert.ok((await game()).players.some((p) => p.name === `${oldName} B`));
+  await page.click('#in-list li:first-child button');
+  await page.click('#action-title button.rename');
+  await page.fill('#ask-input', oldName);
+  await page.click('#ask-ok');
+
   // Money: the pool, paying
   await toPage(3);
   assert.match(await text('#m-facts'), /NOK 2 600/);
@@ -450,6 +462,53 @@ try {
   await shot('12-deal', false);
   await page.click('#deal-ok');
   await page.waitForSelector('#screen-summary:not([hidden])');
+
+  // Fixing mistakes: a rebuy by mistake brings someone back in; take it back
+  const fix = await browser.newPage({ viewport: { width: 390, height: 844 } });
+  fix.on('pageerror', (e) => errors.push(e.message));
+  await fix.goto(base + '?lang=en');
+  await fix.evaluate(() => { localStorage.clear(); localStorage.setItem('propoker.installHidden', '1'); });
+  await fix.reload();
+  await fix.click('#new-btn');
+  for (const n of NAMES.slice(0, 5)) { await fix.fill('#new-player-name', n); await fix.press('#new-player-name', 'Enter'); }
+  await fix.click('#start-btn');
+  await fix.click('#ask-ok');
+  await fix.click('#page-dots button[data-page="1"]');
+  await fix.waitForTimeout(500);
+  const fixGame = () => fix.evaluate(() => JSON.parse(localStorage.getItem('propoker.tournament')));
+  const out = async (name) => {
+    await fix.click(`#in-list li button:has-text("${name}")`);
+    await fix.click('#action-buttons button:has-text("Knocked out")');
+    await fix.click('#ask-cancel'); // no rebuy
+    await fix.click('#pick-list li button:has-text("Ben")');
+    await fix.waitForTimeout(200);
+  };
+  await out('Anna');
+  await out('Carl');
+  await fix.click('#out-list li button:has-text("Anna")');
+  await fix.click('#action-buttons button:has-text("Rebuy and back in")');
+  await fix.waitForTimeout(200);
+  assert.equal((await fixGame()).players.find((p) => p.name === 'Anna').status, 'in', 'back in by mistake');
+  await fix.click('#in-list li button:has-text("Anna")');
+  await fix.click('#action-buttons button:has-text("Take back the rebuy")');
+  let fg = await fixGame();
+  const anna = fg.players.find((p) => p.name === 'Anna');
+  assert.deepEqual([anna.status, anna.place, anna.rebuys], ['out', 5, 0], 'out again in her old place, no rebuy');
+  assert.equal(fg.players.find((p) => p.id === anna.outBy).name, 'Ben');
+  assert.match(await fix.textContent('#toast-text'), /Anna is out again in 5th/);
+  // Carl actually went out first: change his place
+  await fix.click('#out-list li button:has-text("Carl")');
+  await fix.click('#action-buttons button:has-text("Change place")');
+  await fix.click('#pick-list li button:has-text("5th")');
+  fg = await fixGame();
+  assert.deepEqual(['Anna', 'Carl'].map((n) => fg.players.find((p) => p.name === n).place), [4, 5]);
+  // And Anna wasn't out at all
+  await fix.click('#out-list li button:has-text("Anna")');
+  await fix.click('#action-buttons button:has-text("Not out after all")');
+  fg = await fixGame();
+  assert.equal(fg.players.find((p) => p.name === 'Anna').status, 'in');
+  assert.equal(fg.players.find((p) => p.name === 'Carl').place, 5);
+  await fix.close();
 
   // Tablet sideways: the clock and a side panel
   const tab = await browser.newPage({ viewport: { width: 1180, height: 820 }, screen: { width: 1180, height: 820 }, isMobile: true, hasTouch: true, deviceScaleFactor: 1 });

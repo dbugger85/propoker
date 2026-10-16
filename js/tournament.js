@@ -76,11 +76,14 @@ export function leave(t, id, chipsStay, now) {
 }
 
 // A rebuy: more chips for someone still in, or back in for someone knocked out.
+// Each rebuy is remembered (`rebuyLog`), with how they went out if it brought
+// them back, so it can be taken back later.
 export function rebuy(t, id, rng = Math.random) {
   const p = player(t, id);
   if (!p) return;
   snapshot(t);
   p.rebuys++;
+  p.rebuyLog = [...(p.rebuyLog ?? []), p.status === 'in' ? 'stay' : { status: p.status, outBy: p.outBy, outLevel: p.outLevel, outAt: p.outAt, chipsOut: p.chipsOut }];
   if (p.status !== 'in') {
     const seat = seatOne(t.players, t.tables, t.settings.seatsPerTable, rng);
     t.tables = seat.tables;
@@ -88,6 +91,53 @@ export function rebuy(t, id, rng = Math.random) {
     freshStack(t, p, t.settings.rebuy.chips);
   } else addToStack(p, t.settings.rebuy.chips);
   recomputePlaces(t);
+}
+
+// Taking back the last rebuy, also long after. If it brought them back in,
+// they go back out just as they were (same place, same "out by").
+export function takeBackRebuy(t, id) {
+  const p = player(t, id);
+  if (!p || !p.rebuys) return;
+  snapshot(t);
+  p.rebuys--;
+  const last = (p.rebuyLog ?? []).pop() ?? 'stay'; // older saves: an ordinary rebuy
+  if (last === 'stay') addToStack(p, -t.settings.rebuy.chips);
+  else if (p.status === 'in') Object.assign(p, last, { place: null, stack: null, stackLevel: null });
+  recomputePlaces(t);
+}
+
+// A knockout by mistake, found later: back in without a rebuy, at a free seat.
+export function backIn(t, id, rng = Math.random) {
+  const p = player(t, id);
+  if (!p || p.status === 'in') return;
+  snapshot(t);
+  const seat = seatOne(t.players, t.tables, t.settings.seatsPerTable, rng);
+  t.tables = seat.tables;
+  Object.assign(p, { status: 'in', place: null, outBy: null, outLevel: null, outAt: null, chipsOut: 0, table: seat.table, seat: seat.seat });
+  recomputePlaces(t);
+}
+
+// The order they went out, by hand: `place` for one player who is out; the
+// others out move up or down to make room (their times are swapped round).
+export function setPlace(t, id, place) {
+  const p = player(t, id);
+  const out = t.players.filter((x) => x.status !== 'in').sort((a, b) => a.outAt - b.outAt);
+  const to = t.players.length - place; // the first out is last
+  if (!p || p.status === 'in' || to < 0 || to >= out.length || out.indexOf(p) === to) return;
+  snapshot(t);
+  const times = out.map((x) => x.outAt);
+  const order = out.filter((x) => x !== p);
+  order.splice(to, 0, p);
+  order.forEach((x, i) => (x.outAt = times[i]));
+  recomputePlaces(t);
+}
+
+// Who knocked them out, changed afterwards (null: nobody / not known).
+export function setOutBy(t, id, byId) {
+  const p = player(t, id);
+  if (!p || p.status === 'in' || p.outBy === byId) return;
+  snapshot(t);
+  p.outBy = byId;
 }
 
 // Undoing one rebuy by mistake: the Undo button covers it.

@@ -152,3 +152,53 @@ test('settling up: who pays whom, and the money paid in', () => {
   T.undo(t);
   assert.equal(T.player(t, 'p2').paidIn, 0, 'undo takes back a payment');
 });
+
+test('taking back a rebuy that brought someone back in', () => {
+  const t = T.createTournament(setup(5), 0);
+  T.knockOut(t, 'p0', 'p1', 10);
+  T.knockOut(t, 'p2', 'p3', 20);
+  assert.deepEqual([T.player(t, 'p0').place, T.player(t, 'p2').place], [5, 4]);
+  T.rebuy(t, 'p0'); // back in by mistake
+  T.knockOut(t, 'p4', null, 30);
+  assert.equal(T.money(t).pool, 1200);
+  T.takeBackRebuy(t, 'p0');
+  const p0 = T.player(t, 'p0');
+  assert.equal(p0.status, 'out');
+  assert.equal(p0.rebuys, 0);
+  assert.equal(p0.outBy, 'p1', 'out by the same player');
+  assert.equal(p0.place, 5, 'the same place as before');
+  assert.equal(T.player(t, 'p4').place, 3);
+  assert.equal(T.money(t).pool, 1000, 'the money leaves the pot');
+});
+
+test('taking back an ordinary rebuy, and older saves', () => {
+  const t = T.createTournament(setup(3), 0);
+  T.countStacks(t, { p0: 10000, p1: 10000, p2: 10000 }, 1);
+  T.rebuy(t, 'p0');
+  assert.equal(T.player(t, 'p0').stack, 20000);
+  T.takeBackRebuy(t, 'p0');
+  assert.equal(T.player(t, 'p0').rebuys, 0);
+  assert.equal(T.player(t, 'p0').stack, 10000, 'its chips leave the stack');
+  T.player(t, 'p1').rebuys = 2; // from an older version, without the log
+  T.takeBackRebuy(t, 'p1');
+  assert.equal(T.player(t, 'p1').rebuys, 1);
+  assert.equal(T.player(t, 'p1').status, 'in');
+});
+
+test('back in after a mistaken knockout, places by hand, who knocked them out', () => {
+  const t = T.createTournament(setup(6), 0);
+  ['p0', 'p1', 'p2'].forEach((id, i) => T.knockOut(t, id, 'p5', i + 1));
+  assert.deepEqual(['p0', 'p1', 'p2'].map((id) => T.player(t, id).place), [6, 5, 4]);
+  T.setPlace(t, 'p0', 4); // p0 went out last of the three after all
+  assert.deepEqual(['p0', 'p1', 'p2'].map((id) => T.player(t, id).place), [4, 6, 5]);
+  T.setOutBy(t, 'p0', 'p4');
+  assert.equal(T.player(t, 'p0').outBy, 'p4');
+  T.backIn(t, 'p1');
+  const p1 = T.player(t, 'p1');
+  assert.equal(p1.status, 'in');
+  assert.ok(p1.seat);
+  assert.equal(p1.rebuys, 0, 'no rebuy');
+  assert.deepEqual(['p0', 'p2'].map((id) => T.player(t, id).place), [5, 6]);
+  T.undo(t);
+  assert.equal(T.player(t, 'p1').status, 'out', 'undo works for these too');
+});
