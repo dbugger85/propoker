@@ -1,0 +1,401 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+  <meta name="theme-color" content="#f1eee8">
+  <title>ProPoker – poker tournament clock, tables and payouts</title>
+  <meta name="description" content="Free app for poker nights: a big blind clock, players and knockouts, rebuys and add-ons, seating and table balancing, the prize pool and payouts, and a summary for the group chat. Works offline on any phone or tablet.">
+  <link rel="canonical" href="https://dbugger85.github.io/propoker/">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://dbugger85.github.io/propoker/">
+  <meta property="og:site_name" content="ProPoker">
+  <meta property="og:title" content="ProPoker – poker tournament clock, tables and payouts">
+  <meta property="og:description" content="Free app for poker nights: a big blind clock, players and knockouts, rebuys and add-ons, seating and table balancing, the prize pool and payouts, and a summary for the group chat. Works offline on any phone or tablet.">
+  <meta property="og:image" content="https://dbugger85.github.io/propoker/icons/preview.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:locale" content="en_GB">
+  <meta property="og:locale:alternate" content="nb_NO">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="icon" href="./icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="ProPoker">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <link rel="stylesheet" href="./style.css">
+  <script>
+    // Apply the saved theme before the page draws, so it doesn't flash.
+    try {
+      const t = localStorage.getItem('propoker.theme');
+      if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+    } catch {}
+  </script>
+  <script>
+    // Tablets: everything a little bigger upright (up to 15%, never so big that
+    // fewer rows fit than on a phone), and the normal size sideways. The page
+    // tells the browser it's narrower than the window, and the browser scales it
+    // up to fit. Phones (shortest side under 700px) keep the normal size. From Substitutor.
+    (function () {
+      const meta = document.querySelector('meta[name="viewport"]');
+      const fit = () => {
+        const vv = window.visualViewport;
+        const w = vv ? vv.width * vv.scale : innerWidth;
+        const h = vv ? vv.height * vv.scale : innerHeight;
+        const scale = Math.min(w, h) >= 700 && h > w ? Math.min(1.15, h / 844) : 1;
+        const content = (scale > 1.01 ? `width=${Math.round(w / scale)}, viewport-fit=cover` : 'width=device-width, initial-scale=1, viewport-fit=cover') + ', interactive-widget=resizes-content';
+        if (meta.content !== content) meta.content = content;
+      };
+      fit();
+      addEventListener('resize', () => { if (!document.activeElement?.matches('input, textarea')) fit(); });
+    })();
+  </script>
+  <script type="module" src="./js/app.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <img class="logo" src="./icons/icon.svg" alt="">
+      <h1>ProPoker</h1>
+    </div>
+    <div class="top-actions">
+      <button id="settings-btn" type="button" class="icon cog" aria-label="Tournament settings" data-t-label hidden><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
+      <button id="lang-toggle" type="button" class="lang-toggle"></button>
+      <button id="theme-toggle" type="button" class="theme" aria-label="Theme"></button>
+    </div>
+  </header>
+  <p class="tagline" data-t>The clock, the tables and the money for your poker night</p>
+
+  <main>
+    <!-- Home -->
+    <section id="screen-home" class="screen" hidden>
+      <button id="new-btn" type="button" class="primary big" data-t>New tournament</button>
+      <div id="last-card" class="last-card" hidden>
+        <div class="last-head">
+          <span class="muted small" data-t>Last tournament</span>
+          <span id="last-date" class="muted small"></span>
+        </div>
+        <div id="last-title" class="last-title"></div>
+        <div id="last-line" class="muted"></div>
+        <div class="share-links">
+          <button id="last-share" type="button" class="link" data-t>Share again</button>
+        </div>
+      </div>
+      <p class="intro" data-t>ProPoker runs your poker tournament from one phone or tablet: a big blind clock with sounds, players and knockouts, rebuys and add-ons, random seating and table balancing for several tables, the prize pool and payouts, and a summary of who owes whom. Free, no sign-up, and it works without signal.</p>
+      <div id="install-card" class="install-card" hidden>
+        <img src="./icons/icon.svg" alt="">
+        <div class="grow">
+          <strong data-t>Install the app</strong>
+          <div class="muted small" data-t>Quick to open, works without signal.</div>
+        </div>
+        <button id="install-btn" type="button" class="primary" data-t>Install</button>
+        <button id="install-hide" type="button" class="icon" aria-label="Not now" data-t-label>✕</button>
+      </div>
+      <p class="source-link"><a href="https://github.com/dbugger85/propoker" target="_blank" rel="noopener" data-t>Open source – help make it better on GitHub</a></p>
+    </section>
+
+    <!-- Setup -->
+    <section id="screen-setup" class="screen" hidden>
+      <h2 data-t>New tournament</h2>
+
+      <fieldset>
+        <legend data-t>Tournament</legend>
+        <label class="field"><span data-t>Name</span>
+          <input id="s-name" autocomplete="off" enterkeyhint="done"></label>
+        <div class="field inline-picker"><span data-t>Currency</span><span id="s-currency"></span></div>
+        <label class="field inline"><span data-t>Buy-in</span><input id="s-buyin" type="number" inputmode="numeric" min="0"></label>
+        <label class="field inline"><span><span data-t>Starting chips</span><span class="sub" data-t>Game points, not money</span></span><input id="s-chips" type="number" inputmode="numeric" min="1" step="100"></label>
+        <label class="field inline"><span><span data-t>House fee per player</span><span class="sub" data-t>For food and drinks; kept out of the prize pool</span></span><input id="s-fee" type="number" inputmode="numeric" min="0"></label>
+      </fieldset>
+
+      <fieldset>
+        <legend data-t>Chips</legend>
+        <p class="muted small" data-t>Your chip colours and what each is worth in the game. The blinds are rounded to the smallest chip. Fill in how many you have to check there are enough</p>
+        <div class="chip-head muted small"><span data-t>Colour</span><span data-t>Value</span><span data-t>You have</span><span></span></div>
+        <div id="s-chipset"></div>
+        <button id="s-add-chip" type="button" class="link edit-link" data-t>Add colour</button>
+        <div id="s-stacks" class="stacks"></div>
+      </fieldset>
+
+      <fieldset>
+        <legend data-t>Blinds</legend>
+        <div id="s-presets" class="seg four"></div>
+        <label class="field inline"><span data-t>Minutes per level</span><input id="s-minutes" type="number" inputmode="numeric" min="1"></label>
+        <label class="field inline"><span data-t>Minutes per break</span><input id="s-break" type="number" inputmode="numeric" min="1"></label>
+        <div class="style-label" data-t>Antes</div>
+        <div id="s-antes" class="seg three"></div>
+        <ul id="s-levels" class="levels"></ul>
+        <div class="row">
+          <button id="s-add-level" type="button" class="grow" data-t>Add level</button>
+          <button id="s-add-break" type="button" class="grow" data-t>Add break</button>
+        </div>
+        <p id="s-length" class="muted small"></p>
+      </fieldset>
+
+      <fieldset>
+        <legend data-t>Rebuys and add-ons</legend>
+        <div class="choices"><label><input id="s-rebuy-on" type="checkbox"><span data-t>Rebuys</span></label></div>
+        <div id="s-rebuy-box">
+          <label class="field inline"><span data-t>Rebuy price</span><input id="s-rebuy-price" type="number" inputmode="numeric" min="0"></label>
+          <label class="field inline"><span data-t>Rebuy chips</span><input id="s-rebuy-chips" type="number" inputmode="numeric" min="0" step="100"></label>
+          <label class="field inline"><span><span data-t>Rebuys until the end of level</span></span><input id="s-rebuy-until" type="number" inputmode="numeric" min="0"></label>
+        </div>
+        <div class="choices"><label><input id="s-addon-on" type="checkbox"><span><span data-t>Add-on</span><span class="sub" data-t>Offered at the break after the last rebuy level</span></span></label></div>
+        <div id="s-addon-box">
+          <label class="field inline"><span data-t>Add-on price</span><input id="s-addon-price" type="number" inputmode="numeric" min="0"></label>
+          <label class="field inline"><span data-t>Add-on chips</span><input id="s-addon-chips" type="number" inputmode="numeric" min="0" step="100"></label>
+        </div>
+        <label class="field inline"><span><span data-t>Late entry until the end of level</span></span><input id="s-late-until" type="number" inputmode="numeric" min="0"></label>
+      </fieldset>
+
+      <fieldset>
+        <legend data-t>Tables</legend>
+        <label class="field inline"><span data-t>Seats per table</span><input id="s-seats" type="number" inputmode="numeric" min="2" max="12"></label>
+        <div class="choices"><label><input id="s-random" type="checkbox"><span data-t>Draw seats at random</span></label></div>
+        <p id="s-tables-note" class="note"></p>
+      </fieldset>
+
+      <fieldset>
+        <legend><span data-t>Players</span> <span id="s-count" class="count"></span></legend>
+        <form id="add-player-form" class="row">
+          <input id="new-player-name" placeholder="Player name" data-t-placeholder autocomplete="off" enterkeyhint="done">
+          <button type="submit" class="primary" data-t>Add</button>
+        </form>
+        <div id="known-names" class="known"></div>
+        <ul id="s-players" class="list inner"></ul>
+      </fieldset>
+
+      <fieldset>
+        <legend data-t>Payouts</legend>
+        <div id="s-payouts"></div>
+        <button id="s-edit-payouts" type="button" class="link edit-link" data-t>Change payouts</button>
+      </fieldset>
+
+      <p id="setup-error" class="error"></p>
+      <div class="row">
+        <button id="setup-back" type="button" data-t>Back</button>
+        <button id="start-btn" type="button" class="primary grow" data-t>Start tournament</button>
+      </div>
+    </section>
+
+    <!-- The tournament -->
+    <section id="screen-game" class="screen" hidden>
+      <div id="mini-clock" class="clock mini" hidden>
+        <div><div id="mini-level" class="mini-level"></div><div id="mini-blinds" class="mini-blinds"></div></div>
+        <div id="mini-count" class="countdown"></div>
+      </div>
+      <div id="panel-tabs" class="seg three panel-tabs"></div>
+      <div id="game-pages" class="pages">
+        <div id="page-clock" class="page">
+          <div id="clock" class="clock big-clock">
+            <div id="c-level" class="c-level"></div>
+            <div id="c-count" class="countdown"></div>
+            <div class="progress"><div id="c-progress"></div></div>
+            <div id="c-blinds" class="c-blinds"></div>
+            <div id="c-ante" class="c-ante"></div>
+            <div id="c-next" class="c-next muted"></div>
+          </div>
+          <div class="controls">
+            <button id="c-back" type="button" aria-label="Back" data-t-label><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 5v14L9 12zM6 5v14"/></svg></button>
+            <button id="c-pause" type="button" class="primary"></button>
+            <button id="c-skip" type="button" aria-label="Next level" data-t-label><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5v14l10-7zM18 5v14"/></svg></button>
+          </div>
+          <div class="controls small-controls">
+            <button id="c-minus" type="button" data-t>−1 min</button>
+            <button id="c-plus" type="button" data-t>+1 min</button>
+            <button id="c-mute" type="button"></button>
+          </div>
+          <div id="c-facts" class="facts"></div>
+          <div id="c-chips" class="chip-legend"></div>
+          <p id="c-status" class="status"></p>
+        </div>
+
+        <div id="page-players" class="page">
+          <div class="row">
+            <button id="late-btn" type="button" class="grow" data-t>Add player</button>
+            <button id="undo-btn" type="button" class="grow" data-t>Undo</button>
+          </div>
+          <h3><span data-t>In play</span> <span id="in-count"></span></h3>
+          <ul id="in-list" class="list"></ul>
+          <h3 id="out-title" data-t>Out</h3>
+          <ul id="out-list" class="list"></ul>
+        </div>
+
+        <div id="page-tables" class="page">
+          <div id="moves-banner" class="banner" hidden></div>
+          <p id="tables-tip" class="muted small tip"></p>
+          <div id="tables-grid" class="tables-grid"></div>
+        </div>
+
+        <div id="page-money" class="page">
+          <div id="m-facts" class="facts"></div>
+          <h3 data-t>Prizes</h3>
+          <ul id="m-prizes" class="list"></ul>
+          <button id="m-edit-payouts" type="button" class="link edit-link" data-t>Change payouts</button>
+          <h3><span data-t>Payments</span> <span id="m-unpaid" class="muted"></span></h3>
+          <ul id="m-payments" class="list"></ul>
+        </div>
+      </div>
+      <div id="page-dots" class="page-dots"></div>
+    </section>
+
+    <!-- The end -->
+    <section id="screen-summary" class="screen" hidden>
+      <h2 id="sum-title"></h2>
+      <p id="sum-line" class="muted"></p>
+      <ul id="sum-results" class="list"></ul>
+      <h3 data-t>Settle up</h3>
+      <p class="muted small" data-t>Prize won minus what each player paid</p>
+      <ul id="sum-settle" class="list"></ul>
+      <div id="sum-facts" class="facts"></div>
+      <button id="sum-share" type="button" class="primary big" data-t>Share</button>
+      <div class="row">
+        <button id="sum-undo" type="button" class="grow" data-t>Back to the tournament</button>
+        <button id="sum-new" type="button" class="grow" data-t>New tournament</button>
+      </div>
+    </section>
+  </main>
+
+  <!-- A new level or a break: big, for a few seconds -->
+  <div id="overlay" class="overlay" hidden><div class="overlay-box"><div id="ov-title" class="ov-title"></div><div id="ov-main" class="ov-main"></div><div id="ov-sub" class="ov-sub"></div></div></div>
+
+  <!-- A player's options -->
+  <dialog id="action-dialog">
+    <h2 id="action-title"></h2>
+    <p id="action-text" class="muted"></p>
+    <div id="action-buttons" class="stack"></div>
+    <button id="action-cancel" type="button" class="big" data-t>Close</button>
+  </dialog>
+
+  <!-- Pick a player or an option from a list -->
+  <dialog id="pick-dialog">
+    <h2 id="pick-title"></h2>
+    <ul id="pick-list" class="list"></ul>
+    <div class="row">
+      <button id="pick-cancel" type="button" class="grow" data-t>Cancel</button>
+      <button id="pick-skip" type="button" class="grow" hidden></button>
+    </div>
+  </dialog>
+
+  <!-- One level or break -->
+  <dialog id="level-dialog">
+    <form id="level-form">
+      <h2 id="level-title"></h2>
+      <div id="level-blind-fields">
+        <label class="field inline"><span data-t>Small blind</span><input id="l-sb" type="number" inputmode="numeric" min="0"></label>
+        <label class="field inline"><span data-t>Big blind</span><input id="l-bb" type="number" inputmode="numeric" min="1"></label>
+        <label class="field inline"><span data-t>Ante</span><input id="l-ante" type="number" inputmode="numeric" min="0"></label>
+      </div>
+      <label class="field inline"><span data-t>Minutes</span><input id="l-minutes" type="number" inputmode="numeric" min="1"></label>
+      <button id="l-remove" type="button" class="danger" data-t>Remove</button>
+      <div class="row">
+        <button id="l-cancel" type="button" data-t>Cancel</button>
+        <button type="submit" class="primary grow" data-t>Save</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Payouts -->
+  <dialog id="payout-dialog" class="scrolling">
+    <div class="dialog-body">
+      <h2 data-t>Payouts</h2>
+      <div id="p-modes" class="seg three"></div>
+      <p id="p-explain" class="muted small"></p>
+      <div id="p-rows"></div>
+      <div id="p-add-row" class="row" hidden>
+        <button id="p-add" type="button" class="grow" data-t>Add place</button>
+        <button id="p-remove" type="button" class="grow" data-t>Remove place</button>
+      </div>
+      <div class="field inline-picker"><span data-t>Round prizes to</span><span id="p-round"></span></div>
+      <div id="p-mincash-box" class="choices"><label><input id="p-mincash" type="checkbox"><span><span data-t>Fewer places if the last would win less than the buy-in</span></span></label></div>
+      <p id="p-error" class="error"></p>
+      <h3 id="p-preview-title"></h3>
+      <ul id="p-preview" class="list"></ul>
+    </div>
+    <div class="row dialog-buttons">
+      <button id="p-cancel" type="button" data-t>Cancel</button>
+      <button id="p-done" type="button" class="primary grow" data-t>Done</button>
+    </div>
+  </dialog>
+
+  <!-- Seat moves: balancing, breaking a table, the final table -->
+  <dialog id="moves-dialog" class="scrolling">
+    <div class="dialog-body">
+      <h2 id="moves-title"></h2>
+      <p id="moves-text" class="muted"></p>
+      <ul id="moves-list" class="list"></ul>
+    </div>
+    <div class="row dialog-buttons">
+      <button id="moves-later" type="button" data-t>Later</button>
+      <button id="moves-done" type="button" class="primary grow" data-t>They have moved</button>
+    </div>
+  </dialog>
+
+  <!-- Settings during the tournament (the cog) -->
+  <dialog id="settings-dialog" class="scrolling">
+    <div class="dialog-body">
+      <h2 data-t>Tournament settings</h2>
+      <div class="choices">
+        <label><input id="g-sound" type="checkbox"><span data-t>Sounds</span></label>
+        <label><input id="g-vibrate" type="checkbox"><span data-t>Vibrate</span></label>
+      </div>
+      <label class="field inline"><span data-t>Rebuys until the end of level</span><input id="g-rebuy-until" type="number" inputmode="numeric" min="0"></label>
+      <label class="field inline"><span data-t>Late entry until the end of level</span><input id="g-late-until" type="number" inputmode="numeric" min="0"></label>
+      <label class="field inline"><span data-t>Seats per table</span><input id="g-seats" type="number" inputmode="numeric" min="2" max="12"></label>
+      <h3 data-t>Coming levels</h3>
+      <p class="muted small" data-t>Tap a level to change it</p>
+      <ul id="g-levels" class="levels"></ul>
+      <div class="row">
+        <button id="g-add-level" type="button" class="grow" data-t>Add level</button>
+        <button id="g-add-break" type="button" class="grow" data-t>Add break</button>
+      </div>
+      <button id="g-end" type="button" class="danger" data-t>End tournament</button>
+    </div>
+    <div class="row dialog-buttons">
+      <button id="g-done" type="button" class="primary grow" data-t>Done</button>
+    </div>
+  </dialog>
+
+  <!-- Ending early: share the rest of the prize money -->
+  <dialog id="deal-dialog" class="scrolling">
+    <div class="dialog-body">
+      <h2 data-t>End with a deal</h2>
+      <p id="deal-text" class="muted"></p>
+      <div id="deal-rows"></div>
+      <p id="deal-error" class="error"></p>
+    </div>
+    <div class="row dialog-buttons">
+      <button id="deal-cancel" type="button" data-t>Cancel</button>
+      <button id="deal-ok" type="button" class="primary grow" data-t>End tournament</button>
+    </div>
+  </dialog>
+
+  <!-- Questions -->
+  <dialog id="ask-dialog">
+    <form id="ask-form">
+      <h2 id="ask-title"></h2>
+      <p id="ask-text" class="muted"></p>
+      <input id="ask-input" autocomplete="off" enterkeyhint="done">
+      <div class="row">
+        <button id="ask-cancel" type="button" data-t>Cancel</button>
+        <button id="ask-ok" type="submit" class="primary grow">OK</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- How to install on iPhone and iPad (Safari has no install button) -->
+  <dialog id="ios-install-dialog">
+    <h2 data-t>Install on iPhone</h2>
+    <ol class="steps">
+      <li data-t-html>Tap the <strong>Share</strong> button <span class="share-icon" aria-hidden="true"></span> in Safari’s toolbar.</li>
+      <li data-t-html>Scroll down and tap <strong>Add to Home Screen</strong>.</li>
+      <li data-t-html>Tap <strong>Add</strong>. ProPoker is now on your home screen.</li>
+    </ol>
+    <button id="ios-install-close" type="button" class="primary big" data-t>Got it</button>
+  </dialog>
+
+  <div id="toast" class="toast" role="status" hidden><span id="toast-text"></span><button id="toast-action" type="button" hidden></button></div>
+</body>
+</html>

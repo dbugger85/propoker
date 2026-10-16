@@ -1,0 +1,16 @@
+{
+  "name": "propoker",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Poker tournament manager: blind clock, tables and money",
+  "scripts": {
+    "start": "python3 -m http.server 8000",
+    "test": "node --test test/*.test.js",
+    "e2e": "node test/e2e.mjs",
+    "screenshots": "node test/screenshots.mjs"
+  },
+  "devDependencies": {
+    "playwright-core": "^1.63.0"
+  }
+}
