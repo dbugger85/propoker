@@ -2,7 +2,7 @@
 // updates arrive straight away; if that fails or takes over 3 seconds, it uses
 // the copy saved on the phone. From Substitutor.
 
-const CACHE = 'propoker-v2';
+const CACHE = 'propoker-v3';
 const FILES = [
   './',
   './index.html',

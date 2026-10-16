@@ -35,6 +35,8 @@
   --felt-muted: rgb(255 255 255 / 0.72);
   --felt-gold: #ffe08a;
   --felt-edge: rgb(255 255 255 / 0.5);
+  --well: rgb(20 24 33 / 0.04); /* input boxes: a faint recess, not glass */
+  --well-line: rgb(20 24 33 / 0.13);
   --rail: rgb(70 44 26 / 0.9); /* the drawn table's padded edge */
   --rail-line: rgb(255 255 255 / 0.18);
   --seat: rgb(8 40 24 / 0.68); /* a player's marker on the drawn table */
@@ -76,6 +78,8 @@
     --felt-muted: rgb(255 255 255 / 0.66);
     --felt-gold: #f3d27a;
     --felt-edge: rgb(255 255 255 / 0.22);
+  --well: rgb(0 0 0 / 0.18);
+  --well-line: rgb(255 255 255 / 0.1);
   --rail: rgb(52 34 22 / 0.85);
   --rail-line: rgb(255 255 255 / 0.1);
   --seat: rgb(4 22 12 / 0.78);
@@ -117,6 +121,8 @@
   --felt-muted: rgb(255 255 255 / 0.66);
   --felt-gold: #f3d27a;
   --felt-edge: rgb(255 255 255 / 0.22);
+  --well: rgb(0 0 0 / 0.18);
+  --well-line: rgb(255 255 255 / 0.1);
   --rail: rgb(52 34 22 / 0.85);
   --rail-line: rgb(255 255 255 / 0.1);
   --seat: rgb(4 22 12 / 0.78);
@@ -232,7 +238,8 @@ button.link { background: transparent; border: 0; color: var(--green); font-weig
 button.edit-link { min-height: 44px; margin: 4px 0 8px; }
 button.danger-fill { background-color: var(--red); border-color: var(--red); color: var(--card); }
 input { width: 100%; padding: 0 12px; }
-input[type="number"] { font-variant-numeric: tabular-nums; }
+/* Number boxes (text boxes with the number keyboard): right-aligned, digits the same width */
+input[inputmode="numeric"], input[inputmode="decimal"] { font-variant-numeric: tabular-nums; text-align: right; padding-right: 14px; }
 
 .row { display: flex; gap: 8px; margin: 12px 0; }
 .row input { flex: 1; min-width: 0; }
@@ -309,7 +316,7 @@ label.field { display: block; margin: 16px 0; font-weight: 500; }
 label.field input { margin-top: 6px; }
 /* A number: the words on the left, a short box on the right */
 label.field.inline { display: grid; grid-template-columns: 1fr 104px; align-items: center; gap: 12px; margin: 12px 0; }
-label.field.inline input { margin: 0; text-align: center; }
+label.field.inline input { margin: 0; }
 label.field .sub, .choices .sub { display: block; margin-top: 2px; color: var(--muted); font-size: 14px; font-weight: 400; }
 /* Words on the left, a picker button on the right */
 .field.inline-picker { display: grid; grid-template-columns: 1fr minmax(104px, auto); align-items: center; gap: 12px; margin: 12px 0; font-weight: 500; }
@@ -497,7 +504,7 @@ legend + * { clear: both; }
 #count-rows > .count-row:first-child, .count-table + .count-row { border-top: 0; }
 .count-row .name { font-weight: 600; overflow-wrap: anywhere; line-height: 1.2; }
 .count-row .sub { display: block; font-size: 12px; font-weight: 400; color: var(--muted); }
-.count-row input { text-align: center; padding: 0 6px; }
+.count-row input { padding: 0 12px 0 6px; }
 .count-seat { font: 700 20px/1 "Barlow Condensed", system-ui, sans-serif; color: var(--muted); text-align: center; }
 .count-bb { font-variant-numeric: tabular-nums; white-space: nowrap; }
 .count-sum { padding: 10px 20px 0; border-top: 1px solid var(--line); }
@@ -591,7 +598,6 @@ legend + * { clear: both; }
 
 /* Payouts editor */
 .pay-row { display: grid; grid-template-columns: 1fr 104px auto; align-items: center; gap: 10px; margin: 8px 0; }
-.pay-row input { text-align: center; }
 .pay-row .pay-unit { min-width: 24px; color: var(--muted); font-size: 14px; }
 .pay-row .pay-fixed { justify-self: end; font-weight: 700; }
 
@@ -660,12 +666,22 @@ button.picker::after { content: ""; flex: none; width: 8px; height: 8px; margin:
 .fact { -webkit-backdrop-filter: none; backdrop-filter: none; }
 .list.inner { background: transparent; -webkit-backdrop-filter: none; backdrop-filter: none; border-color: var(--line); box-shadow: none; }
 dialog { background-color: var(--glass-strong); box-shadow: inset 0 1px 0 var(--glass-shine), inset 0 0 0 1px var(--glass-edge), 0 24px 60px rgb(0 0 0 / 0.3); }
-button:not(.primary, .danger, .icon, .link, .danger-fill), input {
+button:not(.primary, .danger, .icon, .link, .danger-fill) {
   background-color: var(--glass);
   background-image: linear-gradient(180deg, rgb(255 255 255 / 0.12), transparent 60%);
   border-color: var(--glass-line);
   box-shadow: inset 0 1px 0 var(--glass-shine), inset 0 0 0 1px var(--glass-edge), var(--shadow);
 }
+/* Boxes you type in are recessed wells, so they read differently from the glass buttons you tap */
+input {
+  background-color: var(--well);
+  background-image: none;
+  border-color: var(--well-line);
+  box-shadow: inset 0 1px 2px rgb(0 0 0 / 0.06);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+input:focus-visible { outline: none; }
+input:focus { border-color: var(--green); box-shadow: 0 0 0 3px color-mix(in srgb, var(--green) 22%, transparent); }
 .list .player > button, .list li button.icon { box-shadow: none; background: transparent; }
 button.primary {
   background-image: linear-gradient(180deg, rgb(255 255 255 / 0.22), transparent 60%);
@@ -756,19 +772,20 @@ body.wide .seats { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 body.wide .tables-grid.drawn { grid-template-columns: minmax(0, 1fr); }
 body.wide .tables-grid.drawn > :only-child { width: 100%; }
 
-/* No spinner arrows in the number boxes: they're too small to tap anyway */
-input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
-input[type="number"]::-webkit-inner-spin-button, input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
 .levels-more { width: 100%; min-height: 44px; margin-top: 4px; }
 .levels li button.levels-more { display: block; padding: 0; text-align: center; color: var(--green); font-weight: 600; font-style: normal; }
 
 /* Chips: a round chip in its real colour with white edge spots (the colour comes from the chip set, like a flag) */
-.chip-dot { --chip: #888; flex: none; display: inline-block; width: 22px; height: 22px; border-radius: 50%; vertical-align: middle; background: radial-gradient(circle, var(--chip) 0 38%, rgb(255 255 255 / 0.85) 39% 46%, var(--chip) 47%), conic-gradient(from 0deg, var(--chip) 0 10%, #fff 10% 15%, var(--chip) 15% 35%, #fff 35% 40%, var(--chip) 40% 60%, #fff 60% 65%, var(--chip) 65% 85%, #fff 85% 90%, var(--chip) 90%); box-shadow: 0 0 0 1px rgb(0 0 0 / 0.25), 0 2px 4px rgb(0 0 0 / 0.2); }
+.chip-dot { flex: none; display: inline-block; width: 22px; height: 22px; vertical-align: middle; }
+.chip-dot svg { display: block; width: 100%; height: 100%; }
+/* "Own colour…" in the colour list: a rainbow chip until a colour is chosen (like the flags, fixed colours) */
+.chip-dot.own { border-radius: 50%; background: conic-gradient(#e53935, #fdd835, #43a047, #1e88e5, #8e24aa, #e53935); box-shadow: inset 0 0 0 1.5px rgb(0 0 0 / 0.3); }
+.color-input { position: fixed; left: 50%; bottom: 0; width: 1px; height: 1px; min-height: 0; padding: 0; border: 0; opacity: 0; pointer-events: none; }
 .chip-dot.big { width: 30px; height: 30px; }
 .chip-head, .chip-row { display: grid; grid-template-columns: 76px minmax(0, 1fr) minmax(0, 1fr) 40px; gap: 8px; align-items: center; }
 .chip-head { margin: 8px 0 4px; }
 .chip-row { margin: 6px 0; }
-.chip-row input { text-align: center; padding: 0 6px; }
+.chip-row input { padding: 0 12px 0 6px; }
 .chip-row button.picker { gap: 6px; padding: 0 8px; }
 .chip-row button.picker > span { display: flex; align-items: center; gap: 8px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .chip-row button.icon { min-width: 40px; }

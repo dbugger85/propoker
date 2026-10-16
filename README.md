@@ -31,7 +31,7 @@ On a tablet held sideways, the clock fills the left half like a TV, with players
 Tap **New tournament** and fill in from top to bottom. Everything is saved as you type, and the players are kept for next time. Names from earlier nights show up as buttons you can tap to add.
 
 - **Tournament**: name, currency, buy-in, starting chips, and an optional house fee per player (for food and drinks; it doesn't go into the prize pool).
-- **Chips**: your chip colours and what each is worth. Fill in **You have** to check that your chips are enough for everyone. The blinds are rounded to your smallest chip.
+- **Chips**: your chip colours (from the list, or **Own colour…** for any colour) and what each is worth. Fill in **You have** to check that your chips are enough for everyone. The blinds are rounded to your smallest chip.
 - **Blinds**: pick Turbo, Standard or Deep, or tap a level to change it. Minutes per level and per break apply to every level. Antes are optional: one ante the size of the big blind (BB ante), or a small ante from every player (Classic).
 - **Rebuys and add-ons**: the price, the chips, and the last level they're allowed. The add-on is offered at the break after the last rebuy level.
 - **Tables**: seats per table (2–12), and whether seats are drawn at random.

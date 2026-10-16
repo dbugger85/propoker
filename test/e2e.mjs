@@ -56,6 +56,19 @@ try {
   assert.equal(await page.$$eval('#s-players li', (l) => l.length), 12);
   await page.fill('#s-seats', '6');
   assert.equal(await page.textContent('#s-tables-note'), '12 players at 2 tables');
+  // Number boxes split the thousands as you type
+  await page.fill('#s-chips', '');
+  await page.type('#s-chips', '15000');
+  assert.equal(await page.inputValue('#s-chips'), '15\u00a0000');
+  assert.equal(await page.inputValue('#s-rebuy-chips'), '15\u00a0000', 'rebuy chips follow');
+  await page.fill('#s-chips', '10000');
+  assert.equal(await page.inputValue('#s-chips'), '10\u00a0000');
+  // A chip in your own colour, from the phone's colour picker
+  await page.click('#s-chipset .chip-row:nth-child(2) button.picker');
+  await page.click('#pick-list button:has-text("Own colour")');
+  await page.$eval('#color-input', (e) => { e.value = '#12ab34'; e.dispatchEvent(new Event('change')); });
+  assert.equal(await page.$eval('#s-chipset .chip-row:nth-child(2) circle', (c) => c.getAttribute('fill')), '#12ab34');
+  assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('propoker.setup')).chipSet[1].color), '#12ab34');
   await page.click('#s-presets button:has-text("Turbo")');
   assert.equal(await page.inputValue('#s-minutes'), '12');
   await page.click('#s-presets button:has-text("Standard")');
@@ -68,6 +81,7 @@ try {
   assert.deepEqual(await page.$$eval('#p-preview .amount', (a) => a.map((x) => x.textContent.replace(/\s/g, ' '))), ['NOK 1 700', 'NOK 500', 'NOK 200']);
   await shot('2-payouts', false);
   await page.click('#p-done');
+  assert.equal(await page.$eval('#screen-setup', (e) => e.innerText.includes('null')), false, 'no "null" on the page');
   await shot('3-setup');
 
   await page.click('#start-btn');

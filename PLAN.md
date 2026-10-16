@@ -237,7 +237,10 @@ Same warm off-white page in light and navy `#0a0f1c` in dark, the same glass var
 - Thousands are split by a space that never wraps (10 000), in both languages, for chips and money.
 - Icon in PrimeTime's style (gradient, glass disc with a rim light, a white symbol), with a spade; the disc and spade a little larger, the spade a little higher.
 - Built in this session: everything in section 7, with README screenshots (`npm run screenshots`). Published as the public repo dbugger85/propoker, live on GitHub Pages at https://dbugger85.github.io/propoker/ (no own domain yet).
-- Next (owner's wish 2026-10-16): a drawn **table view** and **chip counts at breaks**. Planned in section 10, not built yet.
+- Next (owner's wish 2026-10-16): a drawn **table view** and **chip counts at breaks**. Planned in section 10, built the same day (see 10.4).
+- Number boxes (owner's wish 2026-10-16): **right-aligned, not centred**, and **with the thousands split** (10 000) as you type. They're text boxes that open the number keyboard (`inputmode`), since a `type="number"` box can't show the space.
+- Input boxes (owner's wish 2026-10-16): **no glass look**, but recessed wells (a faint fill, a hairline border, a soft green border while typing). Buttons stay glass.
+- Chips (owner's wish 2026-10-16): **drawn as vector graphics** (SVG: six edge spots and an inner ring) instead of CSS gradients, which looked fuzzy; white and yellow chips get grey spots and a darker edge so they show on a light background. **Own colour…** in the colour list picks any colour with the phone's colour picker.
 
 ## 10. Table view and chip counts (planned 2026-10-16, built 2026-10-16)
 

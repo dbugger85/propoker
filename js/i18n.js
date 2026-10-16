@@ -236,6 +236,8 @@ export const NO = {
   '{name}: {seat}': '{name}: {seat}',
 
   // Chip counts
+  'Own colour': 'Egen farge',
+  'Own colour…': 'Egen farge…',
   'Count chips': 'Tell sjetonger',
   'A good time to count the chips': 'Fin tid for å telle sjetongene',
   'Chip leader: {name}, {chips}': 'Chipleder: {name}, {chips}',

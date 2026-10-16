@@ -105,9 +105,9 @@
         <label class="field"><span data-t>Name</span>
           <input id="s-name" autocomplete="off" enterkeyhint="done"></label>
         <div class="field inline-picker"><span data-t>Currency</span><span id="s-currency"></span></div>
-        <label class="field inline"><span data-t>Buy-in</span><input id="s-buyin" type="number" inputmode="numeric" min="0"></label>
-        <label class="field inline"><span><span data-t>Starting chips</span><span class="sub" data-t>Game points, not money</span></span><input id="s-chips" type="number" inputmode="numeric" min="1" step="100"></label>
-        <label class="field inline"><span><span data-t>House fee per player</span><span class="sub" data-t>For food and drinks; kept out of the prize pool</span></span><input id="s-fee" type="number" inputmode="numeric" min="0"></label>
+        <label class="field inline"><span data-t>Buy-in</span><input id="s-buyin" type="text" inputmode="numeric" min="0"></label>
+        <label class="field inline"><span><span data-t>Starting chips</span><span class="sub" data-t>Game points, not money</span></span><input id="s-chips" type="text" inputmode="numeric" min="1" step="100"></label>
+        <label class="field inline"><span><span data-t>House fee per player</span><span class="sub" data-t>For food and drinks; kept out of the prize pool</span></span><input id="s-fee" type="text" inputmode="numeric" min="0"></label>
       </fieldset>
 
       <fieldset>
@@ -122,8 +122,8 @@
       <fieldset>
         <legend data-t>Blinds</legend>
         <div id="s-presets" class="seg four"></div>
-        <label class="field inline"><span data-t>Minutes per level</span><input id="s-minutes" type="number" inputmode="numeric" min="1"></label>
-        <label class="field inline"><span data-t>Minutes per break</span><input id="s-break" type="number" inputmode="numeric" min="1"></label>
+        <label class="field inline"><span data-t>Minutes per level</span><input id="s-minutes" type="text" inputmode="numeric" min="1"></label>
+        <label class="field inline"><span data-t>Minutes per break</span><input id="s-break" type="text" inputmode="numeric" min="1"></label>
         <div class="style-label" data-t>Antes</div>
         <div id="s-antes" class="seg three"></div>
         <ul id="s-levels" class="levels"></ul>
@@ -138,21 +138,21 @@
         <legend data-t>Rebuys and add-ons</legend>
         <div class="choices"><label><input id="s-rebuy-on" type="checkbox"><span data-t>Rebuys</span></label></div>
         <div id="s-rebuy-box">
-          <label class="field inline"><span data-t>Rebuy price</span><input id="s-rebuy-price" type="number" inputmode="numeric" min="0"></label>
-          <label class="field inline"><span data-t>Rebuy chips</span><input id="s-rebuy-chips" type="number" inputmode="numeric" min="0" step="100"></label>
-          <label class="field inline"><span><span data-t>Rebuys until the end of level</span></span><input id="s-rebuy-until" type="number" inputmode="numeric" min="0"></label>
+          <label class="field inline"><span data-t>Rebuy price</span><input id="s-rebuy-price" type="text" inputmode="numeric" min="0"></label>
+          <label class="field inline"><span data-t>Rebuy chips</span><input id="s-rebuy-chips" type="text" inputmode="numeric" min="0" step="100"></label>
+          <label class="field inline"><span><span data-t>Rebuys until the end of level</span></span><input id="s-rebuy-until" type="text" inputmode="numeric" min="0"></label>
         </div>
         <div class="choices"><label><input id="s-addon-on" type="checkbox"><span><span data-t>Add-on</span><span class="sub" data-t>Offered at the break after the last rebuy level</span></span></label></div>
         <div id="s-addon-box">
-          <label class="field inline"><span data-t>Add-on price</span><input id="s-addon-price" type="number" inputmode="numeric" min="0"></label>
-          <label class="field inline"><span data-t>Add-on chips</span><input id="s-addon-chips" type="number" inputmode="numeric" min="0" step="100"></label>
+          <label class="field inline"><span data-t>Add-on price</span><input id="s-addon-price" type="text" inputmode="numeric" min="0"></label>
+          <label class="field inline"><span data-t>Add-on chips</span><input id="s-addon-chips" type="text" inputmode="numeric" min="0" step="100"></label>
         </div>
-        <label class="field inline"><span><span data-t>Late entry until the end of level</span></span><input id="s-late-until" type="number" inputmode="numeric" min="0"></label>
+        <label class="field inline"><span><span data-t>Late entry until the end of level</span></span><input id="s-late-until" type="text" inputmode="numeric" min="0"></label>
       </fieldset>
 
       <fieldset>
         <legend data-t>Tables</legend>
-        <label class="field inline"><span data-t>Seats per table</span><input id="s-seats" type="number" inputmode="numeric" min="2" max="12"></label>
+        <label class="field inline"><span data-t>Seats per table</span><input id="s-seats" type="text" inputmode="numeric" min="2" max="12"></label>
         <div class="choices"><label><input id="s-random" type="checkbox"><span data-t>Draw seats at random</span></label></div>
         <p id="s-tables-note" class="note"></p>
       </fieldset>
@@ -291,11 +291,11 @@
     <form id="level-form">
       <h2 id="level-title"></h2>
       <div id="level-blind-fields">
-        <label class="field inline"><span data-t>Small blind</span><input id="l-sb" type="number" inputmode="numeric" min="0"></label>
-        <label class="field inline"><span data-t>Big blind</span><input id="l-bb" type="number" inputmode="numeric" min="1"></label>
-        <label class="field inline"><span data-t>Ante</span><input id="l-ante" type="number" inputmode="numeric" min="0"></label>
+        <label class="field inline"><span data-t>Small blind</span><input id="l-sb" type="text" inputmode="numeric" min="0"></label>
+        <label class="field inline"><span data-t>Big blind</span><input id="l-bb" type="text" inputmode="numeric" min="1"></label>
+        <label class="field inline"><span data-t>Ante</span><input id="l-ante" type="text" inputmode="numeric" min="0"></label>
       </div>
-      <label class="field inline"><span data-t>Minutes</span><input id="l-minutes" type="number" inputmode="numeric" min="1"></label>
+      <label class="field inline"><span data-t>Minutes</span><input id="l-minutes" type="text" inputmode="numeric" min="1"></label>
       <button id="l-remove" type="button" class="danger" data-t>Remove</button>
       <div class="row">
         <button id="l-cancel" type="button" data-t>Cancel</button>
@@ -362,9 +362,9 @@
         <label><input id="g-sound" type="checkbox"><span data-t>Sounds</span></label>
         <label><input id="g-vibrate" type="checkbox"><span data-t>Vibrate</span></label>
       </div>
-      <label class="field inline"><span data-t>Rebuys until the end of level</span><input id="g-rebuy-until" type="number" inputmode="numeric" min="0"></label>
-      <label class="field inline"><span data-t>Late entry until the end of level</span><input id="g-late-until" type="number" inputmode="numeric" min="0"></label>
-      <label class="field inline"><span data-t>Seats per table</span><input id="g-seats" type="number" inputmode="numeric" min="2" max="12"></label>
+      <label class="field inline"><span data-t>Rebuys until the end of level</span><input id="g-rebuy-until" type="text" inputmode="numeric" min="0"></label>
+      <label class="field inline"><span data-t>Late entry until the end of level</span><input id="g-late-until" type="text" inputmode="numeric" min="0"></label>
+      <label class="field inline"><span data-t>Seats per table</span><input id="g-seats" type="text" inputmode="numeric" min="2" max="12"></label>
       <h3 data-t>Coming levels</h3>
       <p class="muted small" data-t>Tap a level to change it</p>
       <ul id="g-levels" class="levels"></ul>
@@ -417,6 +417,9 @@
     </ol>
     <button id="ios-install-close" type="button" class="primary big" data-t>Got it</button>
   </dialog>
+
+  <!-- The phone's colour picker, for a chip in your own colour (opened from the colour list) -->
+  <input id="color-input" class="color-input" type="color" tabindex="-1" aria-hidden="true">
 
   <div id="toast" class="toast" role="status" hidden><span id="toast-text"></span><button id="toast-action" type="button" hidden></button></div>
 </body>

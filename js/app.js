@@ -8,7 +8,7 @@ import * as T from './tournament.js';
 import { plan, applyMoves, swapSeats, tableCount, seatPositions } from './tables.js';
 import { CURRENCIES, prizes, payoutProblem, formatMoney, groupDigits, owed, PERCENTS } from './money.js';
 import { results, shareText, mostKnockouts } from './summary.js';
-import { CHIP_COLORS, makeStack, enoughFor, colourUp, smallestChip, sortChips } from './chips.js';
+import { CHIP_COLORS, makeStack, enoughFor, colourUp, smallestChip, sortChips, chipSvg, chipHex, isCustomColor } from './chips.js';
 import { lang, LANGS, FLAGS, tr, setLang, translatePage } from './i18n.js';
 import { unlockAudio, alert, keepScreenOn, releaseScreen } from './alerts.js';
 
@@ -135,11 +135,37 @@ function hoursText(minutes) {
   return h ? tr('{h} h {m} min', { h, m }) : tr('{m} min', { m });
 }
 
+// Number boxes are text boxes that open the number keyboard (inputmode),
+// because a type="number" box can't show the thousands split. Whole numbers
+// get the split as you type: 10 000.
+const plain = (text) => text.replace(/[\s\u00a0\u202f]/g, '').replace(',', '.');
+const boxText = (v) => (v == null || v === '' ? '' : Number.isInteger(Number(v)) ? groupDigits(Number(v)) : String(v));
+function setNum(input, v) {
+  input.value = boxText(v);
+}
+
 // A number from a box, or null while it's empty or out of range.
 function num(input, min = 0, max = Infinity) {
-  const v = Number(input.value);
-  return input.value.trim() !== '' && Number.isFinite(v) && v >= min && v <= max ? v : null;
+  const text = plain(input.value);
+  const v = Number(text);
+  return text !== '' && Number.isFinite(v) && v >= min && v <= max ? v : null;
 }
+
+// While typing: split the thousands again, and keep the cursor after the same digit.
+document.addEventListener('input', (e) => {
+  const box = e.target;
+  if (!box.matches?.('input[inputmode="numeric"]')) return;
+  const before = box.value;
+  if (!/^[\d\s\u00a0\u202f]*$/.test(before)) return;
+  const digitsLeft = before.slice(0, box.selectionStart ?? before.length).replace(/\D/g, '').length;
+  const digits = before.replace(/\D/g, '');
+  const after = digits ? groupDigits(Number(digits)) : '';
+  if (after === before) return;
+  box.value = after;
+  let pos = 0;
+  for (let seen = 0; pos < after.length && seen < digitsLeft; pos++) if (/\d/.test(after[pos])) seen++;
+  box.setSelectionRange(pos, pos);
+}, true);
 
 function show(name) {
   for (const s of document.querySelectorAll('.screen')) s.hidden = s.id !== `screen-${name}`;
@@ -216,20 +242,20 @@ function applyAntes(levels) {
 function renderSetup() {
   $('s-name').value = setup.name;
   $('s-name').placeholder = tr('Poker night {date}', { date: dateText(Date.now()) });
-  $('s-buyin').value = setup.buyIn;
-  $('s-chips').value = setup.startingChips;
-  $('s-fee').value = setup.fee;
-  $('s-minutes').value = setup.levelMinutes;
-  $('s-break').value = setup.breakMinutes;
+  setNum($('s-buyin'), setup.buyIn);
+  setNum($('s-chips'), setup.startingChips);
+  setNum($('s-fee'), setup.fee);
+  setNum($('s-minutes'), setup.levelMinutes);
+  setNum($('s-break'), setup.breakMinutes);
   $('s-rebuy-on').checked = setup.rebuy.on;
-  $('s-rebuy-price').value = setup.rebuy.price;
-  $('s-rebuy-chips').value = setup.rebuy.chips;
-  $('s-rebuy-until').value = setup.rebuy.untilLevel;
+  setNum($('s-rebuy-price'), setup.rebuy.price);
+  setNum($('s-rebuy-chips'), setup.rebuy.chips);
+  setNum($('s-rebuy-until'), setup.rebuy.untilLevel);
   $('s-addon-on').checked = setup.addOn.on;
-  $('s-addon-price').value = setup.addOn.price;
-  $('s-addon-chips').value = setup.addOn.chips;
-  $('s-late-until').value = setup.lateUntilLevel;
-  $('s-seats').value = setup.seatsPerTable;
+  setNum($('s-addon-price'), setup.addOn.price);
+  setNum($('s-addon-chips'), setup.addOn.chips);
+  setNum($('s-late-until'), setup.lateUntilLevel);
+  setNum($('s-seats'), setup.seatsPerTable);
   $('s-random').checked = setup.randomSeats;
   renderSetupParts();
 }
@@ -290,8 +316,13 @@ function renderSetupParts() {
 
 // ---------- the chip set ----------
 
-const chipDot = (c, big) => el('span', { class: big ? 'chip-dot big' : 'chip-dot', style: `--chip: ${CHIP_COLORS[c.color] ?? '#888'}`, 'aria-hidden': 'true' });
-const colorName = (color) => tr(color[0].toUpperCase() + color.slice(1));
+// A chip, drawn (chipSvg in chips.js). The colour is a name or a checked "#rrggbb", so the markup is safe.
+function chipDot(c, big) {
+  const dot = el('span', { class: big ? 'chip-dot big' : 'chip-dot', 'aria-hidden': 'true' });
+  dot.innerHTML = chipSvg(c.color);
+  return dot;
+}
+const colorName = (color) => (isCustomColor(color) ? tr('Own colour') : tr(color[0].toUpperCase() + color.slice(1)));
 
 // A stack as chips: ⬤ 8 × 25  ⬤ 13 × 100 …
 function stackLine(label, amount, extra) {
@@ -304,27 +335,46 @@ function stackLine(label, amount, extra) {
   ]);
 }
 
+// The phone's own colour picker, for a chip colour not in the list. Resolves to "#rrggbb", or null.
+const OWN = 'own';
+function pickColour(start) {
+  const input = $('color-input');
+  input.value = start;
+  return new Promise((resolve) => {
+    input.onchange = () => resolve(input.value);
+    input.oncancel = () => resolve(null);
+    try {
+      input.showPicker();
+    } catch {
+      input.click();
+    }
+  });
+}
+
 function renderChipSet() {
   // Sorting while typing would move the box away from the finger, so the rows stay in the order added
   $('s-chipset').replaceChildren(
     ...setup.chipSet.map((c, i) => {
-      const value = el('input', { type: 'number', inputmode: 'numeric', min: '1', value: String(c.value), 'aria-label': tr('Value') });
+      const value = el('input', { type: 'text', inputmode: 'numeric', min: '1', value: boxText(c.value), 'aria-label': tr('Value') });
       value.addEventListener('input', () => {
         const v = num(value, 1);
         if (v == null) return;
         c.value = v;
         chipsChanged(false);
       });
-      const have = el('input', { type: 'number', inputmode: 'numeric', min: '0', value: c.have ?? '', placeholder: '–', 'aria-label': tr('You have') });
+      const have = el('input', { type: 'text', inputmode: 'numeric', min: '0', value: boxText(c.have), placeholder: '–', 'aria-label': tr('You have') });
       have.addEventListener('input', () => {
         c.have = have.value.trim() === '' ? null : num(have, 0);
         chipsChanged(false);
       });
       return el('div', { class: 'chip-row' }, [
         picker([chipDot(c, true)], async () => {
-          const v = await pickFrom(tr('Colour'), Object.keys(CHIP_COLORS).map((k) => ({ value: k, label: el('span', { class: 'pick-dot' }, [chipDot({ color: k }, true), colorName(k)]) })), c.color);
+          const own = isCustomColor(c.color) ? c.color : null;
+          const items = Object.keys(CHIP_COLORS).map((k) => ({ value: k, label: el('span', { class: 'pick-dot' }, [chipDot({ color: k }, true), colorName(k)]) }));
+          items.push({ value: OWN, label: el('span', { class: 'pick-dot' }, [own ? chipDot(c, true) : el('span', { class: 'chip-dot big own', 'aria-hidden': 'true' }), tr('Own colour…')]) });
+          const v = await pickFrom(tr('Colour'), items, own ? OWN : c.color);
           if (!v) return;
-          c.color = v;
+          c.color = v === OWN ? (await pickColour(chipHex(c.color))) ?? c.color : v;
           chipsChanged();
         }, colorName(c.color)),
         value,
@@ -340,12 +390,13 @@ function renderStacks() {
   const start = makeStack(setup.startingChips, setup.chipSet);
   const players = setup.players.length;
   const enough = enoughFor(start, setup.chipSet);
-  $('s-stacks').replaceChildren(
+  // replaceChildren() would write a null as the word "null", so the blanks are filtered out
+  $('s-stacks').replaceChildren(...[
     stackLine(tr('Each player starts with'), setup.startingChips),
     setup.rebuy.on ? stackLine(tr('A rebuy'), setup.rebuy.chips) : null,
     setup.addOn.on ? stackLine(tr('The add-on'), setup.addOn.chips) : null,
     enough == null ? null : el('p', { class: players > enough ? 'enough bad' : 'enough' }, enough === 1 ? tr('Your chips are enough for 1 player') : tr('Your chips are enough for {n} players', { n: enough })),
-  );
+  ].filter(Boolean));
 }
 
 // After a change to the chip set: the blinds follow the smallest chip.
@@ -376,8 +427,8 @@ function choosePreset(p) {
   if (p !== 'custom') {
     setup.levelMinutes = PRESETS[p].minutes;
     setup.breakMinutes = PRESETS[p].breakMinutes;
-    $('s-minutes').value = setup.levelMinutes;
-    $('s-break').value = setup.breakMinutes;
+    setNum($('s-minutes'), setup.levelMinutes);
+    setNum($('s-break'), setup.breakMinutes);
     rebuildLevels();
   }
   saveS();
@@ -412,13 +463,13 @@ const bindNumber = (id, min, set, after = renderSetupParts, max) =>
 $('s-name').addEventListener('input', () => { setup.name = $('s-name').value; saveS(); });
 bindNumber('s-buyin', 0, (v) => {
   // The rebuy and add-on usually cost the same as the buy-in, so they follow it until changed
-  if (setup.rebuy.price === setup.buyIn) $('s-rebuy-price').value = setup.rebuy.price = v;
-  if (setup.addOn.price === setup.buyIn) $('s-addon-price').value = setup.addOn.price = v;
+  if (setup.rebuy.price === setup.buyIn) setNum($('s-rebuy-price'), (setup.rebuy.price = v));
+  if (setup.addOn.price === setup.buyIn) setNum($('s-addon-price'), (setup.addOn.price = v));
   setup.buyIn = v;
 });
 bindNumber('s-chips', 100, (v) => {
-  if (setup.rebuy.chips === setup.startingChips) $('s-rebuy-chips').value = setup.rebuy.chips = v;
-  if (setup.addOn.chips === setup.startingChips * 1.5) $('s-addon-chips').value = setup.addOn.chips = v * 1.5;
+  if (setup.rebuy.chips === setup.startingChips) setNum($('s-rebuy-chips'), (setup.rebuy.chips = v));
+  if (setup.addOn.chips === setup.startingChips * 1.5) setNum($('s-addon-chips'), (setup.addOn.chips = v * 1.5));
   setup.startingChips = v;
   rebuildLevels();
 });
@@ -530,15 +581,15 @@ function editLevel(level, i, levels, canRemove) {
   const dlg = $('level-dialog');
   $('level-title').textContent = level.break ? tr('Break') : tr('Level {n}', { n: levelNumber(levels, i) });
   $('level-blind-fields').hidden = !!level.break;
-  $('l-sb').value = level.sb ?? '';
-  $('l-bb').value = level.bb ?? '';
-  $('l-ante').value = level.ante ?? 0;
-  $('l-minutes').value = level.minutes;
+  setNum($('l-sb'), level.sb ?? '');
+  setNum($('l-bb'), level.bb ?? '');
+  setNum($('l-ante'), level.ante ?? 0);
+  setNum($('l-minutes'), level.minutes);
   $('l-remove').hidden = !canRemove;
   // Typing the big blind fills in half for the small blind
   $('l-bb').oninput = () => {
     const bb = num($('l-bb'), 1);
-    if (bb) $('l-sb').value = Math.max(1, Math.round(bb / 2));
+    if (bb) setNum($('l-sb'), Math.max(1, Math.round(bb / 2)));
   };
   return new Promise((resolve) => {
     const done = (v) => {
@@ -577,10 +628,10 @@ function prizeItems(amounts, currency) {
 function renderPayoutBox(box, payouts, pool, entrants, buyIn, currency) {
   const list = prizes(pool, entrants, payouts, buyIn);
   const how = { auto: tr('Automatic'), percent: tr('Percentages'), fixed: tr('Fixed amounts, the rest to the winner') }[payouts.mode];
-  box.replaceChildren(
+  box.replaceChildren(...[
     el('p', { class: 'muted small' }, pool ? tr('{how}. With {n} players the prize pool is {pool}:', { how, n: entrants, pool: cash(pool, currency) }) : tr('{how}. Add players to see the prizes', { how })),
     pool ? el('ul', { class: 'list inner' }, prizeItems(list, currency)) : null,
-  );
+  ].filter(Boolean));
 }
 
 // The payouts popup. Works on a copy; resolves to the new payouts, or null for Cancel.
@@ -602,7 +653,7 @@ function editPayouts(current, pool, entrants, buyIn, currency) {
     const rows = [];
     if (p.mode === 'percent') {
       p.percents.forEach((pc, i) => {
-        const input = el('input', { type: 'number', inputmode: 'decimal', min: '0', max: '100', value: String(pc), 'aria-label': ord(i + 1) });
+        const input = el('input', { type: 'text', inputmode: 'decimal', min: '0', max: '100', value: String(pc), 'aria-label': ord(i + 1) });
         input.addEventListener('input', () => {
           p.percents[i] = num(input, 0, 100) ?? 0;
           renderPreview();
@@ -613,7 +664,7 @@ function editPayouts(current, pool, entrants, buyIn, currency) {
     if (p.mode === 'fixed') {
       rows.push(el('div', { class: 'pay-row' }, [el('span', {}, ord(1)), el('span', { class: 'pay-fixed muted' }, tr('the rest')), el('span', { class: 'pay-unit' }, '')]));
       p.fixed.forEach((a, i) => {
-        const input = el('input', { type: 'number', inputmode: 'numeric', min: '0', value: String(a), 'aria-label': ord(i + 2) });
+        const input = el('input', { type: 'text', inputmode: 'numeric', min: '0', value: boxText(a), 'aria-label': ord(i + 2) });
         input.addEventListener('input', () => {
           p.fixed[i] = num(input, 0) ?? 0;
           renderPreview();
@@ -1064,7 +1115,7 @@ function openCount(only) {
   let table = null;
   for (const p of left) {
     if (!only && multiTable() && p.table !== table) rows.push(el('h3', { class: 'count-table' }, tr('Table {n}', { n: (table = p.table) })));
-    const input = el('input', { type: 'number', inputmode: 'numeric', min: '0', enterkeyhint: 'next', placeholder: p.stack ?? '–', 'aria-label': tr('Chips for {name}', { name: p.name }) });
+    const input = el('input', { type: 'text', inputmode: 'numeric', min: '0', enterkeyhint: 'next', placeholder: p.stack != null ? chips(p.stack) : '–', 'aria-label': tr('Chips for {name}', { name: p.name }) });
     const inBB = el('span', { class: 'count-bb muted small' });
     const showBB = () => (inBB.textContent = num(input, 0) != null && bb ? tr('{n} BB', { n: T.stackInBB(num(input, 0), bb) }) : '');
     input.addEventListener('input', () => { showBB(); renderCountSum(); });
@@ -1348,9 +1399,9 @@ function renderSettingsLevels() {
 function openSettings() {
   $('g-sound').checked = S().sounds.on;
   $('g-vibrate').checked = S().sounds.vibrate;
-  $('g-rebuy-until').value = S().rebuy.untilLevel;
-  $('g-late-until').value = S().lateUntilLevel;
-  $('g-seats').value = S().seatsPerTable;
+  setNum($('g-rebuy-until'), S().rebuy.untilLevel);
+  setNum($('g-late-until'), S().lateUntilLevel);
+  setNum($('g-seats'), S().seatsPerTable);
   $('g-rebuy-until').closest('label').hidden = !S().rebuy.on;
   renderSettingsLevels();
   $('settings-dialog').showModal();
@@ -1399,7 +1450,7 @@ function openDeal() {
   const even = left.map(() => Math.floor(total / left.length / roundTo) * roundTo);
   if (even.length) even[0] += total - even.reduce((a, b) => a + b, 0);
   $('deal-text').textContent = tr('{n} players are still in, and {sum} is left to win. Split evenly below; change the amounts if you agreed on something else. The list order gives the places.', { n: left.length, sum: cash(total) });
-  const inputs = left.map((p, i) => el('input', { type: 'number', inputmode: 'numeric', min: '0', value: String(even[i]), 'aria-label': p.name }));
+  const inputs = left.map((p, i) => el('input', { type: 'text', inputmode: 'numeric', min: '0', value: boxText(even[i]), 'aria-label': p.name }));
   const check = () => {
     const sum = inputs.reduce((s, x) => s + (num(x, 0) ?? 0), 0);
     $('deal-error').textContent = sum === total ? '' : tr('The amounts add up to {sum}, not {total}', { sum: cash(sum), total: cash(total) });

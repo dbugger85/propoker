@@ -22,6 +22,9 @@ Public repo `dbugger85/propoker`, GitHub Pages from `main` / root, live at https
 - All colours are CSS variables: light in `:root`, dark repeated under `prefers-color-scheme: dark` and `:root[data-theme="dark"]`; change both. Exception: real chip colours (`CHIP_COLORS` in `chips.js`) and the flags.
 - Tap targets ≥ 48px (44 for small secondary ones). Phone first (~390px).
 - Thousands are split by a no-break space (owner's wish): `groupDigits()` for chips, `formatMoney()` for money (both in `money.js`). Never `toLocaleString()`.
+- Chips are SVG from `chipSvg()` (owner's wish: vector, no CSS gradient tricks), shown by `chipDot()` in `app.js`. **Own colour…** in the colour list opens the phone's colour picker (`#color-input`).
+- Input boxes are recessed wells (`--well`, `--well-line`), not glass; buttons stay glass (owner's wish).
+- Number boxes are `type="text"` with `inputmode="numeric"` (or `decimal`), never `type="number"`, so they can show the thousands split; they're right-aligned (owner's wish). A document-level listener in `app.js` splits the thousands as you type; read them with `num()` and fill them with `setNum()` / `boxText()`, never `.value =` directly.
 - The English text is the translation key: `tr('Add player')`. Add every new text to `NO` in `js/i18n.js`; `test/i18n.test.js` finds missing ones (tr() calls, `data-t` in the HTML, `[value, 'Label']` lists).
 - When you add, rename or remove a file the app loads, update `FILES` in `sw.js`.
 
@@ -35,7 +38,7 @@ Public repo `dbugger85/propoker`, GitHub Pages from `main` / root, live at https
 | `js/clock.js` | `{ levelIndex, levelMs, runningSince }` from timestamps only: catch-up over several levels, pause, skip, back (restart if > 10 s, else previous), ±1 min, time to the break |
 | `js/tables.js` | Seat draw (round-robin, random seats), `seatOne` for late/back-in players, `plan()` = final table → break tables → balance, `applyMoves`, `swapSeats`, `seatPositions` (seats evenly round the drawn table's stadium edge) |
 | `js/money.js` | What each owes, pool (minus house fee per player), paid places, payouts (auto / percent / fixed amounts with the rest to the winner), rounding down with the rest to 1st, min-cash, money and digit formatting |
-| `js/chips.js` | Chip set (colour, value, how many you have), `makeStack` (how a stack is made of chips), `enoughFor`, `colourUp` (chips no longer needed) |
+| `js/chips.js` | Chip set (colour, value, how many you have), `makeStack` (how a stack is made of chips), `enoughFor`, `colourUp` (chips no longer needed), `chipSvg` (the drawn chip; a colour is a name in `CHIP_COLORS` or an own `#rrggbb`, checked by `isCustomColor`; light chips get grey spots via `isLight`) |
 | `js/tournament.js` | The live tournament: create, knockouts, places from the order players went out, rebuy (also back in), add-on, paid, late entry, leave (chips stay or go), undo (last 20 copies of players/tables/counts), chips in play, prizes, deal, chip counts (`countStacks`, `countedTotal`, `countDifference`, `chipLeader`, `stackInBB`) |
 | `js/summary.js` | Results, most knockouts, the share text |
 | `js/storage.js` | localStorage, all keys `propoker.*` |

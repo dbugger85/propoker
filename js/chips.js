@@ -17,6 +17,27 @@ export const CHIP_COLORS = {
   brown: '#7a4a24',
 };
 
+// A chip's colour is one of the names above, or the organiser's own as "#rrggbb".
+const HEX = /^#[0-9a-f]{6}$/i;
+export const isCustomColor = (color) => HEX.test(color ?? '');
+export const chipHex = (color) => CHIP_COLORS[color] ?? (isCustomColor(color) ? color.toLowerCase() : '#888888');
+
+// Light chips (white, yellow, a pale custom colour) get grey spots and a darker edge, or they'd vanish.
+export function isLight(hex) {
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b > 0.6;
+}
+
+// The chip drawn from above, as SVG: the colour, six edge spots, and a thin inner ring.
+export function chipSvg(color) {
+  const hex = chipHex(color);
+  const light = isLight(hex);
+  const spot = light ? '#66718a' : '#ffffff';
+  const edge = light ? 'rgba(0,0,0,0.45)' : 'rgba(0,0,0,0.3)';
+  const spots = [0, 60, 120, 180, 240, 300].map((a) => `<rect x="13.5" y="1" width="5" height="5.5" rx="1" fill="${spot}" transform="rotate(${a} 16 16)"/>`).join('');
+  return `<svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="15.25" fill="${hex}" stroke="${edge}" stroke-width="1.5"/>${spots}<circle cx="16" cy="16" r="9.5" fill="none" stroke="${spot}" stroke-width="1.2" stroke-dasharray="2.5 2" opacity="0.85"/></svg>`;
+}
+
 export const DEFAULT_CHIPS = [
   { color: 'white', value: 25, have: null },
   { color: 'red', value: 100, have: null },
