@@ -10,6 +10,7 @@ const SEEN_KEY = 'propoker.seen';
 const THEME_KEY = 'propoker.theme';
 const INSTALL_KEY = 'propoker.installHidden';
 const TABLE_VIEW_KEY = 'propoker.tableView';
+const DEALER_KEY = 'propoker.dealer';
 
 export const DEFAULT_SETUP = {
   v: 1,
@@ -25,6 +26,7 @@ export const DEFAULT_SETUP = {
   breakMinutes: 10,
   anteStyle: 'none',
   levels: [],
+  startStack: null, // your own starting chips [{ color, value, count }], or the app's suggestion
   customLevels: null, // your own levels, kept while you look at a preset, so Custom brings them back
   rebuy: { on: true, price: 200, chips: 10000, untilLevel: 4 },
   addOn: { on: true, price: 200, chips: 15000 },
@@ -135,5 +137,21 @@ export function saveTableView(view) {
   try {
     if (view === 'grid') localStorage.setItem(TABLE_VIEW_KEY, 'grid');
     else localStorage.removeItem(TABLE_VIEW_KEY);
+  } catch {}
+}
+
+// Show where the dealer stands on the drawn tables (on unless turned off). Kept on this phone.
+export function loadDealer() {
+  try {
+    return localStorage.getItem(DEALER_KEY) !== '0';
+  } catch {
+    return true;
+  }
+}
+
+export function saveDealer(on) {
+  try {
+    if (on) localStorage.removeItem(DEALER_KEY);
+    else localStorage.setItem(DEALER_KEY, '0');
   } catch {}
 }

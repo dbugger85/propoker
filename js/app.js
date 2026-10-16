@@ -1,13 +1,13 @@
 // Screens, buttons and popups. The rules live in blinds.js, clock.js,
 // tables.js, money.js and tournament.js (no DOM code there).
 
-import { loadSetup, saveSetup, loadGame, saveGame, clearGame, loadLast, saveLast, loadSeen, saveSeen, loadTheme, saveTheme, loadInstallHidden, saveInstallHidden, loadTableView, saveTableView } from './storage.js';
+import { loadSetup, saveSetup, loadGame, saveGame, clearGame, loadLast, saveLast, loadSeen, saveSeen, loadTheme, saveTheme, loadInstallHidden, saveInstallHidden, loadTableView, saveTableView, loadDealer, saveDealer } from './storage.js';
 import { PRESETS, PRESET_ORDER, buildLevels, anteFor, levelNumber, nextPlay, nextLevel, totalMinutes, playLevel } from './blinds.js';
 import * as C from './clock.js';
 import * as T from './tournament.js';
-import { plan, applyMoves, swapSeats, tableCount, seatPositions } from './tables.js';
-import { CURRENCIES, prizes, payoutProblem, formatMoney, groupDigits, owed, PERCENTS } from './money.js';
-import { results, shareText, mostKnockouts } from './summary.js';
+import { plan, applyMoves, swapSeats, tableCount, seatPositions, dealerSpot } from './tables.js';
+import { CURRENCIES, prizes, payoutProblem, formatMoney, groupDigits, owed, paidOf, dueOf, PERCENTS } from './money.js';
+import { results, shareText, mostKnockouts, settlement, BANK } from './summary.js';
 import { CHIP_COLORS, makeStack, enoughFor, colourUp, smallestChip, sortChips, chipSvg, chipHex, isCustomColor } from './chips.js';
 import { lang, LANGS, FLAGS, tr, setLang, translatePage } from './i18n.js';
 import { unlockAudio, alert, keepScreenOn, releaseScreen } from './alerts.js';
@@ -33,9 +33,11 @@ function el(tag, props = {}, children = []) {
 
 // Our own popup instead of the browser's confirm() and prompt(). Resolves to
 // true (or the typed text) for OK, false for the Cancel button, null when closed.
-function ask({ title, text = '', input = '', value = '', ok = tr('OK'), cancel = tr('Cancel'), danger = false }) {
+function ask({ title, text = '', input = '', value = '', ok = tr('OK'), cancel = tr('Cancel'), danger = false, numeric = false }) {
   const dlg = $('ask-dialog');
   const field = $('ask-input');
+  if (numeric) field.setAttribute('inputmode', 'numeric');
+  else field.removeAttribute('inputmode');
   $('ask-title').textContent = title;
   $('ask-text').textContent = text;
   $('ask-text').hidden = !text;
@@ -119,6 +121,7 @@ const chips = groupDigits;
 const cash = (n, currency = (game ?? setup).settings?.currency ?? setup.currency) => formatMoney(n, currency);
 const ord = (n) => (lang === 'no' ? `${n}.` : `${n}${[, 'st', 'nd', 'rd'][(n % 100 >> 3) ^ 1 && n % 10] || 'th'}`);
 const blindsText = (l) => `${chips(l.sb)} / ${chips(l.bb)}`;
+const timeText = (time) => new Intl.DateTimeFormat(locale, { hour: '2-digit', minute: '2-digit', hour12: false }).format(time);
 const dateText = (time) => new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short', year: 'numeric' }).format(time);
 
 function clockText(ms) {
@@ -263,7 +266,7 @@ function renderSetup() {
 }
 
 // Everything on the setup screen that follows from the boxes.
-function renderSetupParts() {
+function renderSetupParts({ chipRows = true } = {}) {
   $('s-currency').replaceChildren(
     picker(setup.currency, async () => {
       const v = await pickFrom(tr('Currency'), CURRENCIES.map((c) => ({ value: c, label: c })), setup.currency);
@@ -274,7 +277,8 @@ function renderSetupParts() {
       }
     }),
   );
-  renderChipSet();
+  if (chipRows) renderChipSet();
+  else renderStacks();
   $('s-presets').replaceChildren(
     ...[...PRESET_ORDER, 'custom'].map((p) =>
       el('button', { type: 'button', 'aria-pressed': String(setup.preset === p), onclick: () => choosePreset(p) }, [
@@ -288,7 +292,7 @@ function renderSetupParts() {
       el('button', { type: 'button', 'aria-pressed': String(setup.anteStyle === v), onclick: () => { setup.anteStyle = v; rebuildLevels(); saveS(); renderSetupParts(); } }, tr(label)),
     ),
   );
-  renderLevelList($('s-levels'), setup.levels, { onEdit: (i) => editSetupLevel(i), limit: showAllLevels ? Infinity : 8 });
+  renderLevelList($('s-levels'), setup.levels, { onEdit: (i) => editSetupLevel(i), onMove: moveSetupLevel, limit: showAllLevels ? Infinity : 8 });
   const hidden = setup.levels.length - 8;
   $('s-levels').append(...(hidden > 0 ? [el('li', {}, el('button', { type: 'button', class: 'levels-more link', onclick: () => { showAllLevels = !showAllLevels; renderSetupParts(); } }, showAllLevels ? tr('Show fewer') : tr('Show all {n} rows', { n: setup.levels.length })))] : []));
   const plays = setup.levels.filter((l) => !l.break).length;
@@ -327,14 +331,51 @@ function chipDot(c, big) {
 const colorName = (color) => (isCustomColor(color) ? tr('Own colour') : tr(color[0].toUpperCase() + color.slice(1)));
 
 // A stack as chips: ⬤ 8 × 25  ⬤ 13 × 100 …
-function stackLine(label, amount, extra) {
-  const stack = makeStack(amount, setup.chipSet);
+function stackLine(label, amount, extra, stack = makeStack(amount, setup.chipSet)) {
   if (!stack) return el('div', { class: 'stack-line bad' }, [el('span', { class: 'stack-label' }, label), tr('{chips} can’t be made with these chips', { chips: chips(amount) })]);
   return el('div', { class: 'stack-line' }, [
     el('span', { class: 'stack-label' }, `${label}: ${chips(amount)}`),
     ...stack.filter((c) => c.count).map((c) => el('span', { class: 'stack-chip' }, [chipDot(c), `${c.count} × ${chips(c.value)}`])),
     extra,
   ]);
+}
+
+// Your own starting stack: how many of each chip every player gets. The
+// starting chips follow; Automatic goes back to the app's suggestion.
+function chooseStartStack() {
+  const dlg = $('stack-dialog');
+  const chipsNow = sortChips(setup.chipSet);
+  const from = startStack() ?? chipsNow.map((c) => ({ ...c, count: 0 }));
+  const inputs = chipsNow.map((c) => el('input', { type: 'text', inputmode: 'numeric', min: '0', enterkeyhint: 'next', value: boxText(from.find((x) => x.color === c.color && x.value === c.value)?.count ?? 0), 'aria-label': colorName(c.color) }));
+  const stack = () => chipsNow.map((c, i) => ({ ...c, count: num(inputs[i], 0) ?? 0 }));
+  const total = () => stack().reduce((s, c) => s + c.count * c.value, 0);
+  const showTotal = () => ($('stack-total').textContent = tr('Each player starts with {chips}', { chips: chips(total()) }));
+  inputs.forEach((x, i) => {
+    x.addEventListener('input', showTotal);
+    x.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter') return;
+      e.preventDefault();
+      inputs[i + 1] ? inputs[i + 1].focus() : x.blur();
+    });
+  });
+  $('stack-rows').replaceChildren(...chipsNow.map((c, i) => el('label', { class: 'pay-row stack-row' }, [el('span', { class: 'pick-dot' }, [chipDot(c, true), chips(c.value)]), el('span', { class: 'pay-unit' }, '×'), inputs[i]])));
+  showTotal();
+  const done = (stackNow) => {
+    dlg.close();
+    const amount = stackNow ? stackNow.reduce((s, c) => s + c.count * c.value, 0) : setup.startingChips;
+    // Rebuy chips and the add-on follow the starting chips while they were the same, as when typing them
+    if (setup.rebuy.chips === setup.startingChips) setup.rebuy.chips = amount;
+    if (setup.addOn.chips === setup.startingChips * 1.5) setup.addOn.chips = amount * 1.5;
+    setup.startingChips = amount;
+    setup.startStack = stackNow;
+    rebuildLevels();
+    saveS();
+    renderSetup();
+  };
+  $('stack-auto').onclick = () => done(null);
+  $('stack-cancel').onclick = () => dlg.close();
+  $('stack-save').onclick = () => (total() > 0 ? done(stack()) : inputs[0].focus());
+  dlg.showModal();
 }
 
 // The phone's own colour picker, for a chip colour not in the list. Resolves to "#rrggbb", or null.
@@ -354,22 +395,23 @@ function pickColour(start) {
 }
 
 function renderChipSet() {
-  // Sorting while typing would move the box away from the finger, so the rows stay in the order added
+  // The rows are sorted by value when you leave a value box, never while typing
   $('s-chipset').replaceChildren(
     ...setup.chipSet.map((c, i) => {
-      const value = el('input', { type: 'text', inputmode: 'numeric', min: '1', value: boxText(c.value), 'aria-label': tr('Value') });
+      const value = el('input', { type: 'text', inputmode: 'numeric', min: '1', value: boxText(c.value), 'aria-label': tr('Value'), 'data-field': 'value' });
       value.addEventListener('input', () => {
         const v = num(value, 1);
         if (v == null) return;
         c.value = v;
         chipsChanged(false);
       });
-      const have = el('input', { type: 'text', inputmode: 'numeric', min: '0', value: boxText(c.have), placeholder: '–', 'aria-label': tr('You have') });
+      value.addEventListener('change', () => setTimeout(sortChipRows)); // after the next box has the focus
+      const have = el('input', { type: 'text', inputmode: 'numeric', min: '0', value: boxText(c.have), placeholder: '–', 'aria-label': tr('You have'), 'data-field': 'have' });
       have.addEventListener('input', () => {
         c.have = have.value.trim() === '' ? null : num(have, 0);
         chipsChanged(false);
       });
-      return el('div', { class: 'chip-row' }, [
+      return el('div', { class: 'chip-row', 'data-i': i }, [
         picker([chipDot(c, true)], async () => {
           const own = isCustomColor(c.color) ? c.color : null;
           const items = Object.keys(CHIP_COLORS).map((k) => ({ value: k, label: el('span', { class: 'pick-dot' }, [chipDot({ color: k }, true), colorName(k)]) }));
@@ -388,13 +430,31 @@ function renderChipSet() {
   renderStacks();
 }
 
+// Puts the chips in order of value. If you had tapped into another chip box,
+// the same box gets the focus again after the rows are drawn anew.
+function sortChipRows() {
+  const box = document.activeElement;
+  const row = box?.closest?.('#s-chipset .chip-row');
+  const keep = row && { chip: setup.chipSet[Number(row.dataset.i)], field: box.dataset.field };
+  const sorted = [...setup.chipSet].sort((a, b) => a.value - b.value);
+  if (sorted.every((c, i) => c === setup.chipSet[i])) return;
+  setup.chipSet = sorted;
+  saveS();
+  renderChipSet();
+  if (keep?.field) $('s-chipset').querySelector(`.chip-row[data-i="${sorted.indexOf(keep.chip)}"] [data-field="${keep.field}"]`)?.focus();
+}
+
+// The starting stack: your own choice of chips, or the app's suggestion
+const startStack = () => setup.startStack ?? makeStack(setup.startingChips, setup.chipSet);
+
 function renderStacks() {
-  const start = makeStack(setup.startingChips, setup.chipSet);
+  const start = startStack();
   const players = setup.players.length;
   const enough = enoughFor(start, setup.chipSet);
+  const choose = el('div', { class: 'stack-choose' }, el('button', { type: 'button', class: 'link', onclick: chooseStartStack }, setup.startStack ? tr('Your own chips · change') : tr('Choose the chips')));
   // replaceChildren() would write a null as the word "null", so the blanks are filtered out
   $('s-stacks').replaceChildren(...[
-    stackLine(tr('Each player starts with'), setup.startingChips),
+    stackLine(tr('Each player starts with'), setup.startingChips, choose, start),
     setup.rebuy.on ? stackLine(tr('A rebuy'), setup.rebuy.chips) : null,
     setup.addOn.on ? stackLine(tr('The add-on'), setup.addOn.chips) : null,
     enough == null ? null : el('p', { class: players > enough ? 'enough bad' : 'enough' }, enough === 1 ? tr('Your chips are enough for 1 player') : tr('Your chips are enough for {n} players', { n: enough })),
@@ -402,12 +462,18 @@ function renderStacks() {
 }
 
 // After a change to the chip set: the blinds follow the smallest chip.
+// After a change to the chip set: the blinds follow the smallest chip. While
+// typing (`redraw` false) the chip rows themselves are left alone, or the box
+// would be swapped for a new one and the keyboard would close after every digit.
 function chipsChanged(redraw = true) {
+  // Your own starting stack is kept while all its chips are still in the set
+  if (setup.startStack?.some((c) => c.count && !setup.chipSet.some((x) => x.color === c.color && x.value === c.value))) setup.startStack = null;
   const smallest = smallestChip(setup.chipSet);
   if (smallest !== setup.smallestChip) {
     setup.smallestChip = smallest;
     rebuildLevels();
-    redraw = true;
+    saveS();
+    return renderSetupParts({ chipRows: redraw });
   }
   saveS();
   if (redraw) renderSetupParts();
@@ -479,6 +545,7 @@ bindNumber('s-chips', 100, (v) => {
   if (setup.rebuy.chips === setup.startingChips) setNum($('s-rebuy-chips'), (setup.rebuy.chips = v));
   if (setup.addOn.chips === setup.startingChips * 1.5) setNum($('s-addon-chips'), (setup.addOn.chips = v * 1.5));
   setup.startingChips = v;
+  setup.startStack = null; // a new total: the app suggests the chips again
   rebuildLevels();
 });
 bindNumber('s-fee', 0, (v) => (setup.fee = v));
@@ -528,6 +595,13 @@ $('setup-back').addEventListener('click', () => {
   show('home');
 });
 
+function moveSetupLevel(from, to) {
+  setup.preset = 'custom';
+  moveItem(setup.levels, from, to);
+  saveS();
+  renderSetupParts();
+}
+
 async function editSetupLevel(i) {
   const result = await editLevel(setup.levels[i], i, setup.levels, true);
   if (!result) return;
@@ -541,7 +615,7 @@ async function editSetupLevel(i) {
 function setupProblem() {
   if (setup.players.length < 2) return tr('Add at least 2 players');
   if (!setup.levels.some((l) => !l.break)) return tr('Add at least one level');
-  if (!makeStack(setup.startingChips, setup.chipSet)) return tr('The starting stack can’t be made with your chips');
+  if (!startStack()) return tr('The starting stack can’t be made with your chips');
   const problem = payoutProblem(estimatedPool(), setup.payouts);
   if (problem?.code === 'percent') return tr('The payout percentages must add up to 100');
   return '';
@@ -568,21 +642,66 @@ $('start-btn').addEventListener('click', () => {
 
 // ---------- the list of levels (setup and the cog) ----------
 
-function renderLevelList(ul, levels, { from = 0, now = -1, onEdit, limit = Infinity }) {
+// With `onMove(from, to)`, breaks get a handle to drag them to another place
+// (not above `now`, the level being played).
+// With `times` ({ [index]: { start, end } }), each row shows its expected clock time.
+function renderLevelList(ul, levels, { from = 0, now = -1, onEdit, onMove, limit = Infinity, times }) {
   const items = [];
   levels.forEach((l, i) => {
     if (i < from || i >= from + limit) return;
     const n = levelNumber(levels, i);
+    const handle = onMove && l.break && i !== now
+      ? el('span', { class: 'drag', title: tr('Drag to move the break'), onpointerdown: (e) => dragBreak(e, ul, onMove, now) })
+      : null;
+    if (handle) handle.innerHTML = GRIP;
+    const when = times?.[i] ? el('span', { class: 'lv-time' }, `${timeText(times[i].start)}–${timeText(times[i].end)}`) : null;
     items.push(
-      el('li', { class: [l.break ? 'break' : '', i === now ? 'now' : ''].join(' ') }, [
+      el('li', { class: [l.break ? 'break' : '', i === now ? 'now' : ''].join(' '), 'data-i': i }, [
+        handle,
         el('button', { type: 'button', onclick: () => onEdit(i) }, l.break
-          ? [el('span', { class: 'lv-n' }, ''), el('span', { class: 'lv-blinds' }, tr('Break')), el('span', { class: 'lv-ante' }, ''), el('span', { class: 'lv-min' }, tr('{m} min', { m: l.minutes }))]
-          : [el('span', { class: 'lv-n' }, String(n)), el('span', { class: 'lv-blinds' }, blindsText(l)), el('span', { class: 'lv-ante' }, l.ante ? tr('Ante {a}', { a: chips(l.ante) }) : ''), el('span', { class: 'lv-min' }, tr('{m} min', { m: l.minutes }))]),
+          ? [el('span', { class: 'lv-n' }, ''), el('span', { class: 'lv-blinds' }, [tr('Break'), when]), el('span', { class: 'lv-ante' }, ''), el('span', { class: 'lv-min' }, tr('{m} min', { m: l.minutes }))]
+          : [el('span', { class: 'lv-n' }, String(n)), el('span', { class: 'lv-blinds' }, [blindsText(l), when]), el('span', { class: 'lv-ante' }, l.ante ? tr('Ante {a}', { a: chips(l.ante) }) : ''), el('span', { class: 'lv-min' }, tr('{m} min', { m: l.minutes }))]),
       ]),
     );
   });
   ul.replaceChildren(...items);
 }
+
+const GRIP = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg>';
+
+// Dragging a break: the row follows the finger, and the rows it passes make
+// room. The dragged row itself stays in the page (its neighbours move), so the
+// finger isn't lost. On release the break moves to its new place in the list.
+function dragBreak(e, ul, onMove, now) {
+  e.preventDefault();
+  const handle = e.currentTarget;
+  const row = handle.closest('li');
+  const startY = e.clientY;
+  const startTop = row.offsetTop;
+  const rows = () => [...ul.querySelectorAll('li[data-i]')];
+  const first = Number(rows()[0].dataset.i);
+  const from = Number(row.dataset.i);
+  handle.setPointerCapture(e.pointerId);
+  row.classList.add('dragging');
+  const middle = (r) => r.getBoundingClientRect().top + r.offsetHeight / 2;
+  handle.onpointermove = (ev) => {
+    const y = ev.clientY;
+    const next = row.nextElementSibling;
+    const prev = row.previousElementSibling;
+    if (next?.dataset.i && y > middle(next)) ul.insertBefore(next, row);
+    else if (prev?.dataset.i && Number(prev.dataset.i) > now && y < middle(prev)) ul.insertBefore(prev, row.nextSibling);
+    row.style.transform = `translateY(${y - startY - (row.offsetTop - startTop)}px)`;
+  };
+  handle.onpointerup = handle.onpointercancel = () => {
+    handle.onpointermove = handle.onpointerup = handle.onpointercancel = null;
+    row.classList.remove('dragging');
+    row.style.transform = '';
+    const to = first + rows().indexOf(row);
+    if (to !== from) onMove(from, to);
+  };
+}
+
+const moveItem = (list, from, to) => list.splice(to, 0, ...list.splice(from, 1));
 
 // One level's popup. Resolves to the changed level, 'remove', or null.
 function editLevel(level, i, levels, canRemove) {
@@ -594,10 +713,19 @@ function editLevel(level, i, levels, canRemove) {
   setNum($('l-ante'), level.ante ?? 0);
   setNum($('l-minutes'), level.minutes);
   $('l-remove').hidden = !canRemove;
-  // Typing the big blind fills in half for the small blind
+  // Typing the big blind fills in half for the small blind, and an ante that
+  // was the same as the big blind (a BB ante) follows it
+  let lastBB = level.bb;
   $('l-bb').oninput = () => {
     const bb = num($('l-bb'), 1);
-    if (bb) setNum($('l-sb'), Math.max(1, Math.round(bb / 2)));
+    if (!bb) return;
+    setNum($('l-sb'), Math.max(1, Math.round(bb / 2)));
+    if (num($('l-ante'), 0) === lastBB) setNum($('l-ante'), bb);
+    lastBB = bb;
+  };
+  $('l-ante-bb').onclick = () => {
+    const bb = num($('l-bb'), 1);
+    if (bb) setNum($('l-ante'), bb);
   };
   return new Promise((resolve) => {
     const done = (v) => {
@@ -625,7 +753,7 @@ function editLevel(level, i, levels, canRemove) {
 
 // ---------- payouts ----------
 
-const MODES = [['auto', 'Automatic'], ['percent', 'Percentages'], ['fixed', 'Fixed amounts']];
+const MODES = [['auto', 'Automatic'], ['percent', 'Percentages'], ['fixed', 'Fixed']];
 const ROUNDING = [1, 5, 10, 20, 50, 100];
 
 // The prizes as a short list: 1st 1,100 kr, 2nd 660 kr…
@@ -773,6 +901,10 @@ function tick() {
     alert('warning', sounds());
   }
   renderClock();
+  if ($('settings-dialog').open && !document.querySelector('#g-levels li.dragging') && now - (tick.times ?? 0) > 5000) {
+    tick.times = now;
+    renderSettingsLevels();
+  }
   if (now - seenTimer > 15000) {
     seenTimer = now;
     saveSeen(now);
@@ -870,7 +1002,7 @@ function renderClock() {
   const pool = T.money(game).pool;
   const leader = T.chipLeader(game);
   $('c-facts').replaceChildren(
-    fact(tr('Players'), `${left2} / ${game.players.length}`, { sub: leader.length ? tr('Chip leader: {name}, {chips}', { name: leader.map((p) => p.name).join(', '), chips: chips(leader[0].stack) }) : '' }),
+    fact(tr('Players'), `${left2} / ${game.players.length}`, { sub: leader.length ? tr('Leader: {name}, {chips}', { name: leader.map((p) => p.name).join(', '), chips: chips(leader[0].stack) }) : '' }),
     fact(tr('Average stack'), chips(avg), { sub: bb ? tr('{n} big blinds', { n: Math.round(avg / bb) }) : '' }),
     fact(tr('Prize pool'), cash(pool), { gold: true }),
     fact(tr('Next break'), toBreak == null ? '–' : toBreak === 0 ? tr('Now') : clockText(toBreak)),
@@ -941,7 +1073,7 @@ function badges(p, leaders = []) {
     leaders.includes(p) ? el('span', { class: 'badge leader' }, tr('Chip leader')) : null,
     p.rebuys ? el('span', { class: 'badge rebuy' }, p.rebuys > 1 ? tr('{n} rebuys', { n: p.rebuys }) : tr('Rebuy')) : null,
     p.addOn ? el('span', { class: 'badge addon' }, tr('Add-on')) : null,
-    !p.paid ? el('span', { class: 'badge owes' }, cash(owed(p, S()))) : null,
+    dueOf(p, S()) ? el('span', { class: 'badge owes' }, cash(dueOf(p, S()))) : null,
   ]);
 }
 
@@ -968,7 +1100,7 @@ function renderPlayers() {
   $('out-list').replaceChildren(
     ...out.map((p) => {
       const by = p.outBy && T.player(game, p.outBy);
-      const why = p.status === 'left' ? tr('Left in level {n}', { n: p.outLevel }) : by ? tr('Out in level {n}, by {name}', { n: p.outLevel, name: by.name }) : tr('Out in level {n}', { n: p.outLevel });
+      const why = p.status === 'left' ? tr('Left the game') : by ? tr('Out by {name}', { name: by.name }) : tr('Out');
       const prize = T.prizeOf(game, p);
       return el('li', { class: 'player out' }, [
         el('button', { type: 'button', onclick: () => openActions(p.id) }, [
@@ -987,7 +1119,7 @@ function openActions(id) {
   const p = T.player(game, id);
   const dlg = $('action-dialog');
   $('action-title').textContent = p.name;
-  const paidLine = p.paid ? tr('Paid {sum}', { sum: cash(owed(p, S())) }) : tr('Owes {sum}', { sum: cash(owed(p, S())) });
+  const paidLine = paymentLine(p);
   $('action-text').textContent = p.status === 'in' ? [seatText(p), stackText(p.stack), paidLine].filter(Boolean).join(' · ') : paidLine;
   const act = (label, fn, cls = '') => el('button', { type: 'button', class: cls, onclick: () => { dlg.close(); fn(); } }, label);
   const buttons = [];
@@ -998,12 +1130,47 @@ function openActions(id) {
   } else if (S().rebuy.on) {
     buttons.push(act(tr('Rebuy and back in'), () => doRebuy(p), 'primary'));
   }
-  buttons.push(act(p.paid ? tr('Not paid after all') : tr('Has paid {sum}', { sum: cash(owed(p, S())) }), () => change(() => T.setPaid(game, p.id, !p.paid))));
+  buttons.push(act(tr('Payment…'), () => openPayment(p)));
   if (p.status === 'in') buttons.push(act(tr('Change seat'), () => { goToPage(2); selectSeat({ table: p.table, seat: p.seat }); }));
   if (p.status === 'in') buttons.push(act(tr('Chip count…'), () => openCount(p.id)));
   buttons.push(act(tr('Rename'), () => renameFlow(p)));
   if (p.status === 'in') buttons.push(act(tr('Left the game'), () => leaveFlow(p)));
   $('action-buttons').replaceChildren(...buttons);
+  $('action-cancel').onclick = () => dlg.close();
+  dlg.showModal();
+}
+
+// "Owes NOK 400", "Paid NOK 600", or "Paid NOK 200 · owes NOK 400"
+function paymentLine(p) {
+  const paid = paidOf(p, S());
+  const due = dueOf(p, S());
+  if (!due) return tr('Paid {sum}', { sum: cash(paid) });
+  return paid ? `${tr('Paid {sum}', { sum: cash(paid) })} · ${tr('owes {sum}', { sum: cash(due) })}` : tr('Owes {sum}', { sum: cash(due) });
+}
+
+// What a player has paid: everything, a part, or nothing (nobody has paid at the start).
+function openPayment(p) {
+  const dlg = $('action-dialog');
+  const bought = owed(p, S());
+  const paid = paidOf(p, S());
+  const due = dueOf(p, S());
+  $('action-title').textContent = p.name;
+  $('action-text').textContent = `${tr('Bought for {sum}', { sum: cash(bought) })} · ${paymentLine(p)}`;
+  const act = (label, fn, cls = '') => el('button', { type: 'button', class: cls, onclick: () => { dlg.close(); fn(); } }, label);
+  const set = (amount) => {
+    change(() => T.pay(game, p.id, amount));
+    toast(paymentLine(T.player(game, p.id)).replace(/^./, (c) => c.toUpperCase()), { label: tr('Undo'), onclick: undo });
+  };
+  $('action-buttons').replaceChildren(...[
+    due ? act(tr('Paid everything ({sum})', { sum: cash(due) }), () => set(bought), 'primary') : null,
+    act(tr('Paid part…'), async () => {
+      const text = await ask({ title: tr('How much has {name} paid in all?', { name: p.name }), text: tr('Bought for {sum}', { sum: cash(bought) }), input: S().currency, value: paid ? groupDigits(paid) : '', ok: tr('Save'), numeric: true });
+      if (!text) return;
+      const amount = Number(text.replace(/\D/g, ''));
+      if (Number.isFinite(amount)) set(amount);
+    }),
+    paid ? act(tr('Not paid'), () => set(0)) : null,
+  ].filter(Boolean));
   $('action-cancel').onclick = () => dlg.close();
   dlg.showModal();
 }
@@ -1190,6 +1357,7 @@ $('g-count').addEventListener('click', () => {
 
 let selected = null; // { table, seat } tapped first when moving someone by hand
 let tableView = loadTableView();
+let showDealer = loadDealer();
 const VIEWS = [['drawn', 'Tables'], ['grid', 'List']];
 const TABLE_ASPECT = 1.5; // the drawn table's box, as in .poker-table's aspect-ratio
 
@@ -1212,7 +1380,7 @@ function renderTables() {
     );
   }
   const who = selected && T.inPlay(game).find((p) => p.table === selected.table && p.seat === selected.seat);
-  $('tables-tip').textContent = who ? tr('Now tap the new seat for {name}', { name: who.name }) : tr('To move someone by hand, tap them, then the new seat');
+  $('tables-tip').textContent = who ? tr('Now tap the new seat for {name}', { name: who.name }) : tr('Tap a player, then their new seat');
   $('table-view').replaceChildren(
     ...VIEWS.map(([v, label]) => el('button', { type: 'button', 'aria-pressed': String(tableView === v), onclick: () => { tableView = v; saveTableView(v); renderTables(); } }, tr(label))),
   );
@@ -1246,7 +1414,7 @@ function drawnTable(t, seats, moving) {
   const max = Math.max(seats, ...here.map((p) => p.seat));
   const leaders = new Set(T.chipLeader(game).map((p) => p.id));
   const moveOf = new Map(game.pending?.moves.map((m) => [m.id, m.to]) ?? []);
-  const markers = seatPositions(max, TABLE_ASPECT).map(({ seat, x, y }) => {
+  const markers = seatPositions(max, TABLE_ASPECT, undefined, showDealer).map(({ seat, x, y }) => {
     const p = here.find((q) => q.seat === seat);
     const isSel = selected && selected.table === t.n && selected.seat === seat;
     const to = p && moveOf.get(p.id);
@@ -1267,6 +1435,7 @@ function drawnTable(t, seats, moving) {
         el('span', { class: 'felt-name' }, tr('Table {n}', { n: t.n })),
         el('span', { class: 'felt-count' }, here.length === 1 ? tr('1 player') : tr('{n} players', { n: here.length })),
       ]),
+      showDealer ? el('span', { class: 'dealer-spot', style: `left: ${dealerSpot().x}%; top: ${dealerSpot().y}%` }, tr('Dealer')) : null,
       ...markers,
     ]),
   ]);
@@ -1348,7 +1517,7 @@ function renderMoney() {
   const list = T.prizeList(game);
   $('m-facts').replaceChildren(
     fact(tr('Prize pool'), cash(m.pool), { gold: true }),
-    fact(tr('Money in'), cash(m.moneyIn), { sub: m.fees ? tr('House fee {fee}', { fee: cash(m.fees) }) : '' }),
+    fact(tr('Money in'), cash(m.collected), { sub: tr('of {sum}', { sum: cash(m.moneyIn) }) + (m.fees ? ` · ${tr('House fee {fee}', { fee: cash(m.fees) })}` : '') }),
     fact(tr('Still to pay'), cash(m.unpaid)),
     fact(tr('Paid places'), String(list.filter((a) => a > 0).length)),
   );
@@ -1358,18 +1527,21 @@ function renderMoney() {
       el('li', { class: 'plain' }, [el('span', { class: 'place' }, ord(i + 1)), el('span', { class: 'name' }, byPlace.get(i + 1)?.name ?? ''), el('span', { class: 'amount gold' }, cash(a))]),
     ),
   );
-  const unpaid = game.players.filter((p) => !p.paid).length;
+  const unpaid = game.players.filter((p) => dueOf(p, S())).length;
   $('m-unpaid').textContent = unpaid ? tr('({n} owe)', { n: unpaid }) : tr('(all paid)');
+  // Who owes first, then by name
   $('m-payments').replaceChildren(
-    ...[...game.players].sort((a, b) => a.paid - b.paid || a.name.localeCompare(b.name)).map((p) =>
-      el('li', { class: 'player' }, [
-        el('button', { type: 'button', onclick: () => change(() => T.setPaid(game, p.id, !p.paid)) }, [
-          el('span', { class: 'name' }, [p.name, el('span', { class: 'sub' }, [tr('Buy-in'), p.rebuys ? ` + ${p.rebuys > 1 ? tr('{n} rebuys', { n: p.rebuys }) : tr('rebuy')}` : '', p.addOn ? ` + ${tr('add-on')}` : ''].join(''))]),
-          el('span', { class: p.paid ? 'badge addon' : 'badge owes' }, p.paid ? tr('Paid') : tr('Owes')),
-          el('span', { class: 'amount' }, cash(owed(p, S()))),
+    ...[...game.players].sort((a, b) => dueOf(b, S()) - dueOf(a, S()) || a.name.localeCompare(b.name)).map((p) => {
+      const due = dueOf(p, S());
+      const paid = paidOf(p, S());
+      return el('li', { class: 'player' }, [
+        el('button', { type: 'button', onclick: () => openPayment(p) }, [
+          el('span', { class: 'name' }, [p.name, el('span', { class: 'sub' }, [tr('Bought for {sum}', { sum: cash(owed(p, S())) }), due && paid ? ` · ${tr('paid {sum}', { sum: cash(paid) })}` : ''].join(''))]),
+          el('span', { class: due ? 'badge owes' : 'badge addon' }, due ? tr('Owes') : tr('Paid')),
+          el('span', { class: 'amount' }, cash(due || paid)),
         ]),
-      ]),
-    ),
+      ]);
+    }),
   );
 }
 
@@ -1387,6 +1559,13 @@ function renderSettingsLevels() {
   renderLevelList($('g-levels'), game.levels, {
     from: game.clock.levelIndex,
     now: game.clock.levelIndex,
+    times: C.schedule(game.clock, game.levels, Date.now()),
+    onMove: (from, to) => {
+      moveItem(game.levels, from, to);
+      save();
+      renderGame();
+      renderSettingsLevels();
+    },
     onEdit: async (i) => {
       const dlg = $('settings-dialog');
       dlg.close();
@@ -1407,6 +1586,7 @@ function renderSettingsLevels() {
 function openSettings() {
   $('g-sound').checked = S().sounds.on;
   $('g-vibrate').checked = S().sounds.vibrate;
+  $('g-dealer').checked = showDealer;
   setNum($('g-rebuy-until'), S().rebuy.untilLevel);
   setNum($('g-late-until'), S().lateUntilLevel);
   setNum($('g-seats'), S().seatsPerTable);
@@ -1418,6 +1598,11 @@ $('settings-btn').addEventListener('click', openSettings);
 $('g-done').addEventListener('click', () => $('settings-dialog').close());
 $('g-sound').addEventListener('change', () => { S().sounds.on = $('g-sound').checked; save(); renderClock(); });
 $('g-vibrate').addEventListener('change', () => { S().sounds.vibrate = $('g-vibrate').checked; save(); });
+$('g-dealer').addEventListener('change', () => {
+  showDealer = $('g-dealer').checked;
+  saveDealer(showDealer);
+  renderTables();
+});
 for (const [id, min, max, set] of [
   ['g-rebuy-until', 0, 99, (v) => (S().rebuy.untilLevel = v)],
   ['g-late-until', 0, 99, (v) => (S().lateUntilLevel = v)],
@@ -1485,10 +1670,15 @@ function finish() {
   game.finishedAt ??= Date.now();
   game.pending = null;
   save();
-  const winner = game.players.find((p) => p.place === 1);
-  saveLast({ v: 1, at: game.startedAt, name: S().name, winner: winner?.name, players: game.players.length, text: summaryText() });
+  saveLastSummary();
   renderSummary();
   show('summary');
+}
+
+// The home page's "Share again" (saved again when the settle-up changes)
+function saveLastSummary() {
+  const winner = game.players.find((p) => p.place === 1);
+  saveLast({ v: 1, at: game.startedAt, name: S().name, winner: winner?.name, players: game.players.length, text: summaryText() });
 }
 
 const summaryText = () => shareText(game, { tr, cash: (a) => cash(a), when: dateText(game.startedAt) });
@@ -1504,7 +1694,7 @@ function renderSummary() {
     ...rows.map((r) =>
       el('li', { class: 'plain' }, [
         el('span', { class: 'place' }, r.place ? ord(r.place) : ''),
-        el('span', { class: 'name' }, [r.name, el('span', { class: 'sub muted small' }, [r.rebuys ? (r.rebuys > 1 ? tr('{n} rebuys', { n: r.rebuys }) : tr('1 rebuy')) : '', r.knockouts ? (r.knockouts > 1 ? tr('{n} knockouts', { n: r.knockouts }) : tr('1 knockout')) : ''].filter(Boolean).join(' · '))]),
+        el('span', { class: 'name' }, [r.name, el('span', { class: 'sub muted small' }, [r.left ? tr('Left the game') : r.outBy ? tr('Out by {name}', { name: r.outBy }) : '', r.rebuys ? (r.rebuys > 1 ? tr('{n} rebuys', { n: r.rebuys }) : tr('1 rebuy')) : '', r.knockouts ? (r.knockouts > 1 ? tr('{n} knockouts', { n: r.knockouts }) : tr('1 knockout')) : ''].filter(Boolean).join(' · '))]),
         r.prize ? el('span', { class: 'amount gold' }, cash(r.prize)) : null,
       ]),
     ),
@@ -1512,17 +1702,44 @@ function renderSummary() {
   $('sum-settle').replaceChildren(
     ...[...rows].sort((a, b) => b.net - a.net).map((r) =>
       el('li', { class: 'plain' }, [
-        el('span', { class: 'name' }, [r.name, el('span', { class: 'sub muted small' }, tr('Paid {sum}', { sum: cash(r.paid) }))]),
+        el('span', { class: 'name' }, [r.name, el('span', { class: 'sub muted small' }, tr('Bought for {sum}', { sum: cash(r.owed) }))]),
         el('span', { class: `amount ${r.net > 0 ? 'plus' : r.net < 0 ? 'minus' : ''}` }, `${r.net > 0 ? '+' : ''}${cash(r.net)}`),
       ]),
     ),
   );
+  renderMoves();
   const ko = mostKnockouts(game);
   $('sum-facts').replaceChildren(
     fact(tr('Prize pool'), cash(m.pool), { gold: true }),
     fact(tr('Players'), String(game.players.length), { sub: tr('Rebuys: {r}, add-ons: {a}', { r: game.players.reduce((s, p) => s + p.rebuys, 0), a: game.players.filter((p) => p.addOn).length }) }),
     fact(tr('Levels played'), String(T.currentLevelNumber(game))),
     fact(tr('Most knockouts'), ko ? String(ko.count) : '–', { sub: ko?.names.join(', ') }),
+  );
+}
+
+// Settle up: who sends what to whom. Money already paid in is with the bank
+// (someone not playing) or a player, who pays it out.
+function renderMoves() {
+  const m = T.money(game);
+  const holder = S().holder ?? BANK;
+  const nameOf = (id) => (id === BANK ? tr('The bank') : T.player(game, id)?.name ?? '');
+  $('sum-holder').hidden = !m.collected;
+  $('sum-holder-pick').replaceChildren(
+    picker(nameOf(holder), async () => {
+      const items = [{ value: BANK, label: tr('The bank'), sub: tr('Someone not playing') }, ...[...game.players].sort((a, b) => a.name.localeCompare(b.name)).map((p) => ({ value: p.id, label: p.name }))];
+      const v = await pickFrom(tr('The money paid in is with'), items, holder);
+      if (!v) return;
+      S().holder = v;
+      save();
+      saveLastSummary();
+      renderSummary();
+    }),
+  );
+  const moves = settlement(game);
+  $('sum-moves').replaceChildren(
+    ...(moves.length
+      ? moves.map((x) => el('li', { class: 'plain' }, [el('span', { class: 'name' }, [nameOf(x.from), el('span', { class: 'arrow' }, ' → '), nameOf(x.to)]), el('span', { class: 'amount' }, cash(x.amount))]))
+      : [el('li', { class: 'plain' }, el('span', { class: 'name muted' }, tr('Everyone is square')))]),
   );
 }
 

@@ -69,3 +69,17 @@ export function untilBreak(c, levels, now) {
   }
   return null;
 }
+
+// When each level is expected to start and end, by the clock on the wall: the
+// level being played from now and what's left of it, the rest one after
+// another. Paused, it's as if the clock went on now, so the times move with
+// every pause, skip and ±1 min. Returns { [index]: { start, end } } from the current level on.
+export function schedule(c, levels, now) {
+  const out = {};
+  let t = now - elapsed(c, now);
+  for (let i = c.levelIndex; i < levels.length; i++) {
+    out[i] = { start: t, end: t + levelLength(levels, i) };
+    t = out[i].end;
+  }
+  return out;
+}

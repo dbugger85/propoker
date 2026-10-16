@@ -10,16 +10,16 @@
 
 import { buildLevels, levelNumber } from './blinds.js';
 import { seatAll, seatOne } from './tables.js';
-import { totals, prizes } from './money.js';
+import { totals, prizes, owed, paidOf } from './money.js';
 
 const HISTORY = 20;
 let lastId = 0;
 export const newId = () => `p${Date.now().toString(36)}${(lastId++).toString(36)}`;
 
 export function createTournament(setup, now, rng = Math.random) {
-  const { players: list, knownNames, customLevels, ...settings } = setup;
+  const { players: list, knownNames, customLevels, startStack, ...settings } = setup;
   const levels = (setup.levels?.length ? setup.levels : buildLevels(setup)).map((l) => ({ ...l }));
-  const base = list.map((p) => ({ id: p.id, name: p.name, status: 'in', rebuys: 0, addOn: false, paid: false, place: null, outBy: null, outLevel: null, outAt: null, chipsOut: 0, stack: null, stackLevel: null }));
+  const base = list.map((p) => ({ id: p.id, name: p.name, status: 'in', rebuys: 0, addOn: false, paidIn: 0, place: null, outBy: null, outLevel: null, outAt: null, chipsOut: 0, stack: null, stackLevel: null }));
   const { tables, players } = seatAll(base, settings.seatsPerTable, settings.randomSeats, rng);
   return { v: 1, startedAt: now, settings: structuredClone(settings), levels, clock: { levelIndex: 0, levelMs: 0, runningSince: null }, players, tables, history: [], finished: false, deal: null, counts: [] };
 }
@@ -99,12 +99,15 @@ export function setAddOn(t, id, on) {
   addToStack(p, on ? t.settings.addOn.chips : -t.settings.addOn.chips);
 }
 
-export function setPaid(t, id, paid) {
+// What a player has paid in so far (0 = nothing). setPaid: all or nothing.
+export function pay(t, id, amount) {
   const p = player(t, id);
-  if (!p || p.paid === paid) return;
+  if (!p || paidOf(p, t.settings) === amount) return;
   snapshot(t);
-  p.paid = paid;
+  p.paidIn = Math.max(0, amount);
+  delete p.paid;
 }
+export const setPaid = (t, id, paid) => pay(t, id, paid ? owed(player(t, id), t.settings) : 0);
 
 export function rename(t, id, name) {
   const p = player(t, id);
@@ -116,7 +119,7 @@ export function addLate(t, name, rng = Math.random) {
   snapshot(t);
   const seat = seatOne(t.players, t.tables, t.settings.seatsPerTable, rng);
   t.tables = seat.tables;
-  const p = { id: newId(), name: name.trim(), status: 'in', rebuys: 0, addOn: false, paid: false, place: null, outBy: null, outLevel: null, outAt: null, chipsOut: 0, stack: null, stackLevel: null, table: seat.table, seat: seat.seat, late: true };
+  const p = { id: newId(), name: name.trim(), status: 'in', rebuys: 0, addOn: false, paidIn: 0, place: null, outBy: null, outLevel: null, outAt: null, chipsOut: 0, stack: null, stackLevel: null, table: seat.table, seat: seat.seat, late: true };
   freshStack(t, p, t.settings.startingChips);
   t.players.push(p);
   recomputePlaces(t);

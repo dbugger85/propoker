@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import * as T from '../js/tournament.js';
-import { shareText } from '../js/summary.js';
+import { shareText, settlement, BANK } from '../js/summary.js';
 
 const setup = (n, extra = {}) => ({
   name: 'Test', currency: 'NOK', buyIn: 200, fee: 0, startingChips: 10000, smallestChip: 25, preset: 'standard',
@@ -83,10 +83,9 @@ test('the share text', () => {
   T.knockOut(t, 'p0', 'p1', 1);
   T.knockOut(t, 'p2', 'p1', 2);
   const text = shareText(t, { tr: (s, v) => (v ? s.replace(/\{(\w+)\}/g, (_, k) => v[k]) : s), cash: (a) => `${a} kr`, when: '16.10.2026' });
-  assert.match(text, /🥇 P1: 600 kr/);
+  assert.match(text, /🥇 P1: 600 kr\n🥈 P2\n🥉 P0\n/, 'the full ranking, prizes for the winners');
   assert.match(text, /Most knockouts: P1 \(2\)/);
-  assert.match(text, /P1: \+400 kr/);
-  assert.match(text, /P0: -200 kr/);
+  assert.match(text, /Settle up:\nP0 → P1: 200 kr\nP2 → P1: 200 kr/, 'nobody paid in: straight to the winner');
 });
 
 test('chip counts: totals, difference, leader', () => {
@@ -129,4 +128,27 @@ test('chip counts: rebuys, add-ons, knockouts, late entries and undo', () => {
   T.undo(t);
   assert.equal(T.player(t, 'p0').stack, 15000, 'undo takes the count back');
   assert.equal(t.counts.length, 1);
+});
+
+test('settling up: who pays whom, and the money paid in', () => {
+  const t = T.createTournament(setup(4), 0); // pool 800, one prize
+  const sum = (moves, id, dir) => moves.filter((x) => x[dir] === id).reduce((s, x) => s + x.amount, 0);
+  T.pay(t, 'p0', 200);
+  T.pay(t, 'p2', 200);
+  T.knockOut(t, 'p0', null, 1);
+  T.knockOut(t, 'p2', null, 2);
+  T.knockOut(t, 'p3', null, 3); // p1 wins 800
+  let moves = settlement(t); // the bank holds 400
+  assert.equal(sum(moves, BANK, 'from'), 400, 'the bank pays out what it holds');
+  assert.equal(sum(moves, 'p3', 'from'), 200, 'p3 still owes the buy-in');
+  assert.equal(sum(moves, 'p1', 'to'), 600, 'the winner gets 800 minus the 200 they still owe');
+  assert.equal(sum(moves, 'p0', 'from') + sum(moves, 'p0', 'to'), 0, 'p0 paid in and won nothing: square');
+  moves = settlement(t, 'p1'); // the winner collected the money
+  assert.equal(sum(moves, 'p1', 'to'), 200, 'the winner keeps the 400, owes 200 for themselves, gets 200 from p3');
+  assert.equal(moves.length, 1);
+  T.undo(t);
+  T.undo(t);
+  T.undo(t);
+  T.undo(t);
+  assert.equal(T.player(t, 'p2').paidIn, 0, 'undo takes back a payment');
 });

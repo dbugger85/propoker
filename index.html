@@ -66,7 +66,7 @@
       <button id="theme-toggle" type="button" class="theme" aria-label="Theme"></button>
     </div>
   </header>
-  <p class="tagline" data-t>The clock, the tables and the money for your poker night</p>
+  <p class="tagline" data-t>Clock, tables and money for poker night</p>
 
   <main>
     <!-- Home -->
@@ -126,6 +126,7 @@
         <label class="field inline"><span data-t>Minutes per break</span><input id="s-break" type="text" inputmode="numeric" min="1"></label>
         <div class="style-label" data-t>Antes</div>
         <div id="s-antes" class="seg three"></div>
+        <p class="muted small" data-t>Tap a level to change it. Drag a break by its handle to move it</p>
         <ul id="s-levels" class="levels"></ul>
         <div class="row">
           <button id="s-add-level" type="button" class="grow" data-t>Add level</button>
@@ -140,14 +141,14 @@
         <div id="s-rebuy-box">
           <label class="field inline"><span data-t>Rebuy price</span><input id="s-rebuy-price" type="text" inputmode="numeric" min="0"></label>
           <label class="field inline"><span data-t>Rebuy chips</span><input id="s-rebuy-chips" type="text" inputmode="numeric" min="0" step="100"></label>
-          <label class="field inline"><span><span data-t>Rebuys until the end of level</span></span><input id="s-rebuy-until" type="text" inputmode="numeric" min="0"></label>
+          <label class="field inline"><span><span data-t>Rebuys until level</span></span><input id="s-rebuy-until" type="text" inputmode="numeric" min="0"></label>
         </div>
         <div class="choices"><label><input id="s-addon-on" type="checkbox"><span><span data-t>Add-on</span><span class="sub" data-t>Offered at the break after the last rebuy level</span></span></label></div>
         <div id="s-addon-box">
           <label class="field inline"><span data-t>Add-on price</span><input id="s-addon-price" type="text" inputmode="numeric" min="0"></label>
           <label class="field inline"><span data-t>Add-on chips</span><input id="s-addon-chips" type="text" inputmode="numeric" min="0" step="100"></label>
         </div>
-        <label class="field inline"><span><span data-t>Late entry until the end of level</span></span><input id="s-late-until" type="text" inputmode="numeric" min="0"></label>
+        <label class="field inline"><span><span data-t>Late entry until level</span></span><input id="s-late-until" type="text" inputmode="numeric" min="0"></label>
       </fieldset>
 
       <fieldset>
@@ -182,6 +183,7 @@
 
     <!-- The tournament -->
     <section id="screen-game" class="screen" hidden>
+      <div id="page-dots" class="page-dots"></div>
       <div id="mini-clock" class="clock mini" hidden>
         <div><div id="mini-level" class="mini-level"></div><div id="mini-blinds" class="mini-blinds"></div></div>
         <div id="mini-count" class="countdown"></div>
@@ -245,7 +247,6 @@
           <ul id="m-payments" class="list"></ul>
         </div>
       </div>
-      <div id="page-dots" class="page-dots"></div>
     </section>
 
     <!-- The end -->
@@ -254,7 +255,11 @@
       <p id="sum-line" class="muted"></p>
       <ul id="sum-results" class="list"></ul>
       <h3 data-t>Settle up</h3>
-      <p class="muted small" data-t>Prize won minus what each player paid</p>
+      <p class="muted small" data-t>Who sends what to whom, with as few transfers as possible (for example with Vipps)</p>
+      <div id="sum-holder" class="field inline-picker"><span data-t>The money paid in is with</span><span id="sum-holder-pick"></span></div>
+      <ul id="sum-moves" class="list moves"></ul>
+      <h3 data-t>Won and lost</h3>
+      <p class="muted small" data-t>Prize won minus what each player bought</p>
       <ul id="sum-settle" class="list"></ul>
       <div id="sum-facts" class="facts"></div>
       <button id="sum-share" type="button" class="primary big" data-t>Share</button>
@@ -291,9 +296,10 @@
     <form id="level-form">
       <h2 id="level-title"></h2>
       <div id="level-blind-fields">
-        <label class="field inline"><span data-t>Small blind</span><input id="l-sb" type="text" inputmode="numeric" min="0"></label>
         <label class="field inline"><span data-t>Big blind</span><input id="l-bb" type="text" inputmode="numeric" min="1"></label>
+        <label class="field inline"><span data-t>Small blind</span><input id="l-sb" type="text" inputmode="numeric" min="0"></label>
         <label class="field inline"><span data-t>Ante</span><input id="l-ante" type="text" inputmode="numeric" min="0"></label>
+        <div class="field-action"><button id="l-ante-bb" type="button" class="link" data-t>Ante same as big blind</button></div>
       </div>
       <label class="field inline"><span data-t>Minutes</span><input id="l-minutes" type="text" inputmode="numeric" min="1"></label>
       <button id="l-remove" type="button" class="danger" data-t>Remove</button>
@@ -302,6 +308,21 @@
         <button type="submit" class="primary grow" data-t>Save</button>
       </div>
     </form>
+  </dialog>
+
+  <!-- Your own starting stack: how many of each chip -->
+  <dialog id="stack-dialog" class="scrolling">
+    <div class="dialog-body">
+      <h2 data-t>The starting stack</h2>
+      <p class="muted small" data-t>How many of each chip every player gets</p>
+      <div id="stack-rows"></div>
+      <p id="stack-total" class="stack-total"></p>
+      <button id="stack-auto" type="button" class="link edit-link" data-t>Automatic (the app suggests)</button>
+    </div>
+    <div class="row dialog-buttons">
+      <button id="stack-cancel" type="button" data-t>Cancel</button>
+      <button id="stack-save" type="button" class="primary grow" data-t>Save</button>
+    </div>
   </dialog>
 
   <!-- Payouts -->
@@ -361,12 +382,13 @@
       <div class="choices">
         <label><input id="g-sound" type="checkbox"><span data-t>Sounds</span></label>
         <label><input id="g-vibrate" type="checkbox"><span data-t>Vibrate</span></label>
+        <label><input id="g-dealer" type="checkbox"><span data-t>Show the dealer at the tables</span></label>
       </div>
-      <label class="field inline"><span data-t>Rebuys until the end of level</span><input id="g-rebuy-until" type="text" inputmode="numeric" min="0"></label>
-      <label class="field inline"><span data-t>Late entry until the end of level</span><input id="g-late-until" type="text" inputmode="numeric" min="0"></label>
+      <label class="field inline"><span data-t>Rebuys until level</span><input id="g-rebuy-until" type="text" inputmode="numeric" min="0"></label>
+      <label class="field inline"><span data-t>Late entry until level</span><input id="g-late-until" type="text" inputmode="numeric" min="0"></label>
       <label class="field inline"><span data-t>Seats per table</span><input id="g-seats" type="text" inputmode="numeric" min="2" max="12"></label>
       <h3 data-t>Coming levels</h3>
-      <p class="muted small" data-t>Tap a level to change it</p>
+      <p class="muted small" data-t>Tap a level to change it. Drag a break by its handle to move it</p>
       <ul id="g-levels" class="levels"></ul>
       <div class="row">
         <button id="g-add-level" type="button" class="grow" data-t>Add level</button>

@@ -133,10 +133,15 @@ export function swapSeats(players, a, b) {
 
 // Where the seats go on the drawn table: a stadium (an oval with straight
 // sides) in a box `aspect` times as wide as it is tall, its edge `inset` (a
-// share of the height) in from the box. Seat 1 is at the bottom middle, the
-// dealer's view, then clockwise. Spaced evenly along the edge, not by angle,
-// so the long sides don't crowd. Returns [{ seat, x, y }] in percent of the box.
-export function seatPositions(seats, aspect = 1.5, inset = 0.14) {
+// share of the height) in from the box. Spaced evenly along the edge, not by
+// angle, so the long sides don't crowd. Returns [{ seat, x, y }] in percent of the box.
+// Without a dealer, seat 1 is at the bottom middle, then clockwise. With
+// `dealer`, the dealer has the top middle (DEALER_SPOT) and the seats go round
+// from the dealer's left as at a real table: seat 1 next to the dealer on the
+// screen's right, the last seat next to the dealer on the left.
+export const dealerSpot = (inset = 0.14) => ({ x: 50, y: 100 * inset });
+
+export function seatPositions(seats, aspect = 1.5, inset = 0.14, dealer = false) {
   const r = 0.5 - inset;
   const h = Math.max(0, aspect / 2 - inset - r); // half the straight side
   const cx = aspect / 2;
@@ -152,8 +157,10 @@ export function seatPositions(seats, aspect = 1.5, inset = 0.14) {
     if (s < Math.PI * r) return [cx + h + r * Math.sin(s / r), cy - r * Math.cos(s / r)];
     return [cx + h - (s - Math.PI * r), cy + r];
   };
+  const step = perimeter / (dealer ? seats + 1 : seats);
+  const start = dealer ? perimeter / 2 + step : 0; // half way round is the top middle
   return Array.from({ length: seats }, (_, i) => {
-    const [x, y] = at((i * perimeter) / seats);
+    const [x, y] = at((start + i * step) % perimeter);
     return { seat: i + 1, x: (100 * x) / aspect, y: 100 * y };
   });
 }

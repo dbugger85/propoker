@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { seatAll, seatOne, plan, applyMoves, swapSeats, freeSeats, seatPositions } from '../js/tables.js';
+import { seatAll, seatOne, plan, applyMoves, swapSeats, freeSeats, seatPositions, dealerSpot } from '../js/tables.js';
 
 // A predictable "random"
 const seq = (seed = 1) => () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646;
@@ -90,4 +90,18 @@ test('seats round the drawn table', () => {
   const [one, two] = seatPositions(9, aspect);
   assert.deepEqual([Math.round(one.x), Math.round(one.y)], [50, 86], 'seat 1 at the bottom middle');
   assert.ok(two.x < one.x, 'then clockwise, to the left');
+});
+
+test('seats round a table with a dealer', () => {
+  const dealer = dealerSpot();
+  for (let n = 2; n <= 12; n++) {
+    const spots = seatPositions(n, 1.5, 0.14, true);
+    assert.equal(spots.length, n);
+    const gap = Math.min(...spots.map((s) => Math.hypot(((s.x - dealer.x) * 1.5) / 100, (s.y - dealer.y) / 100)));
+    const between = Math.hypot(((spots[1].x - spots[0].x) * 1.5) / 100, (spots[1].y - spots[0].y) / 100);
+    if (n >= 4) assert.ok(gap > between * 0.8, `room for the dealer with ${n}`);
+  }
+  const spots = seatPositions(9, 1.5, 0.14, true);
+  assert.ok(spots[0].x > 50 && spots[0].y < 50, 'seat 1 on the dealer’s left: top, right of the middle');
+  assert.ok(spots[8].x < 50 && spots[8].y < 50, 'the last seat on the dealer’s right');
 });

@@ -18,8 +18,8 @@ Open it at **https://dbugger85.github.io/propoker/**. It's free, with no sign-up
 - **Several tables**, drawn as real poker tables seen from above: a random seat draw, then the app tells you when to move a player, when to close a table, and when it's the final table. You can also move players yourself.
 - **Chip counts** at the breaks: type in each stack, and the app shows the chip leader and each player's stack in big blinds.
 - **Your chip set**: each colour's value, and how many of each colour every player gets. Chips are game points, not money.
-- **Money**: buy-ins, rebuys and add-ons. It shows who has paid, the prize pool and the prizes.
-- **At the end**: results, who owes whom, and a text to share in the group chat.
+- **Money**: buy-ins, rebuys and add-ons. Nobody has paid at the start; mark who has paid everything or part, and it shows who still owes what, the prize pool and the prizes.
+- **At the end**: results, who sends what to whom with as few transfers as possible (for Vipps and the like), and a text to share in the group chat.
 
 On a tablet held sideways, the clock fills the left half like a TV, with players, tables and money on the right.
 
@@ -31,8 +31,8 @@ On a tablet held sideways, the clock fills the left half like a TV, with players
 Tap **New tournament** and fill in from top to bottom. Everything is saved as you type, and the players are kept for next time. Names from earlier nights show up as buttons you can tap to add.
 
 - **Tournament**: name, currency, buy-in, starting chips, and an optional house fee per player (for food and drinks; it doesn't go into the prize pool).
-- **Chips**: your chip colours (from the list, or **Own colour…** for any colour) and what each is worth. Fill in **You have** to check that your chips are enough for everyone. The blinds are rounded to your smallest chip.
-- **Blinds**: pick Turbo, Standard or Deep, or tap a level to change it. Minutes per level and per break apply to every level. Antes are optional: one ante the size of the big blind (BB ante), or a small ante from every player (Classic).
+- **Chips**: your chip colours (from the list, or **Own colour…** for any colour) and what each is worth. Fill in **You have** to check that your chips are enough for everyone. The app suggests how many of each chip every player starts with; tap **Choose the chips** to set your own. The blinds are rounded to your smallest chip.
+- **Blinds**: pick Turbo, Standard or Deep, or tap a level to change it. Minutes per level and per break apply to every level. Drag a break by its handle to put it somewhere else. Your own levels are kept under **Custom**, so you can look at a preset and come back. Antes are optional: one ante the size of the big blind (BB ante), or a small ante from every player (Classic).
 - **Rebuys and add-ons**: the price, the chips, and the last level they're allowed. The add-on is offered at the break after the last rebuy level.
 - **Tables**: seats per table (2–12), and whether seats are drawn at random.
 - **Payouts**:
@@ -52,7 +52,7 @@ Tap **Start tournament**. The seat draw shows where everyone sits.
 - **Tap a player** to knock them out, give a rebuy or an add-on, mark them as paid, change their seat, rename them, or record that they left. If you tap by mistake, use **Undo**.
 - **Late entry**: **Add player** on the Players page. The new player gets a seat where there's most room.
 - When tables need evening out, a popup lists **who moves where**. Tap **They have moved** once it's done, or **Someone else** to pick a different player.
-- **The Tables page** shows each table from above, with the seats round the edge. Players who must move pulse orange, with their new seat. **List** at the top switches to a plain list of seats.
+- **The Tables page** shows each table from above, with the seats round the edge and where the dealer stands (turn that off in the cog). Players who must move pulse orange, with their new seat. **List** at the top switches to a plain list of seats.
 - **Move players by hand**: on the Tables page, tap a player and then the new seat, at the same table or another one. If the seat is taken, the two players swap.
 - **Count chips** at a break (the button under the clock, or the cog at any time): type in each player's chips, table by table; Enter jumps to the next box. At the bottom it says whether the total adds up with the chips in play. The Players page then shows each stack, the chip leader, and can sort by stack. Rebuys and add-ons after a count are added to the stack. To count one player, tap them and pick **Chip count…**.
 - At a break the clock page says when the smallest chips are no longer needed (**colour up**).
@@ -65,7 +65,7 @@ Tap **Start tournament**. The seat draw shows where everyone sits.
 </p>
 
 ### 3. The end
-When one player is left, the summary shows the places, prizes and **settle up**: each player's prize minus what they paid. **Share** sends it to the group chat. **Back to the tournament** undoes the last knockout if it was a mistake. The last tournament stays on the start page, so you can share it again later.
+When one player is left, the summary shows everyone's place, who knocked them out, the prizes and **settle up**: each player's prize minus what they paid. **Share** sends the full ranking, prizes and settle-up to the group chat. **Back to the tournament** undoes the last knockout if it was a mistake. The last tournament stays on the start page, so you can share it again later.
 
 ## Install it like an app
 - **Android (Chrome)**: tap **Install** on the start page.

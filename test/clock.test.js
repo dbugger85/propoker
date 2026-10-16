@@ -51,3 +51,16 @@ test('time until the break', () => {
   assert.equal(C.untilBreak(fresh(), levels, 0), 80 * MIN);
   assert.equal(C.untilBreak({ levelIndex: 4, levelMs: 0, runningSince: null }, levels, 0), 0);
 });
+
+test('the expected clock times of the coming levels', () => {
+  const levels = [{ minutes: 20 }, { minutes: 20 }, { break: true, minutes: 10 }, { minutes: 20 }];
+  const min = 60000;
+  const c = { levelIndex: 1, levelMs: 5 * min, runningSince: null }; // paused 5 min into level 2
+  const s = C.schedule(c, levels, 100 * min);
+  assert.deepEqual(Object.keys(s), ['1', '2', '3']);
+  assert.deepEqual(s[1], { start: 95 * min, end: 115 * min }, 'paused: as if it went on now');
+  assert.deepEqual(s[2], { start: 115 * min, end: 125 * min });
+  assert.deepEqual(s[3], { start: 125 * min, end: 145 * min });
+  const later = C.schedule(c, levels, 110 * min); // still paused 10 min later
+  assert.equal(later[3].start, 135 * min, 'a pause moves every time on');
+});

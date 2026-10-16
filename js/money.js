@@ -5,11 +5,36 @@ export const CURRENCIES = ['NOK', 'SEK', 'DKK', 'EUR', 'USD', 'GBP'];
 
 // What one player has bought: buy-in, rebuys and the add-on.
 export const owed = (p, s) => s.buyIn + p.rebuys * s.rebuy.price + (p.addOn ? s.addOn.price : 0);
+// What they have paid so far (nobody has at the start). Older saves had only paid: true/false.
+export const paidOf = (p, s) => p.paidIn ?? (p.paid ? owed(p, s) : 0);
+// What they still have to pay: after a rebuy they owe again.
+export const dueOf = (p, s) => Math.max(0, owed(p, s) - paidOf(p, s));
 
 export function totals(players, s) {
   const moneyIn = players.reduce((sum, p) => sum + owed(p, s), 0);
   const fees = players.length * (s.fee || 0);
-  return { moneyIn, fees, pool: Math.max(0, moneyIn - fees), unpaid: players.filter((p) => !p.paid).reduce((sum, p) => sum + owed(p, s), 0) };
+  const collected = players.reduce((sum, p) => sum + Math.min(paidOf(p, s), owed(p, s)), 0);
+  return { moneyIn, fees, pool: Math.max(0, moneyIn - fees), collected, unpaid: moneyIn - collected };
+}
+
+// Settling up with the fewest transfers (like sending with Vipps). `balances`
+// is [{ id, amount }]: plus receives, minus pays. The biggest payer pays the
+// biggest receiver first, then on down the lists. Returns [{ from, to, amount }].
+export function transfers(balances) {
+  const pay = balances.filter((b) => b.amount < 0).map((b) => ({ id: b.id, left: -b.amount })).sort((a, b) => b.left - a.left);
+  const get = balances.filter((b) => b.amount > 0).map((b) => ({ id: b.id, left: b.amount })).sort((a, b) => b.left - a.left);
+  const out = [];
+  let i = 0;
+  let j = 0;
+  while (i < pay.length && j < get.length) {
+    const amount = Math.min(pay[i].left, get[j].left);
+    if (amount > 0) out.push({ from: pay[i].id, to: get[j].id, amount });
+    pay[i].left -= amount;
+    get[j].left -= amount;
+    if (pay[i].left <= 0) i++;
+    if (get[j].left <= 0) j++;
+  }
+  return out;
 }
 
 // Paid places by the number of players (not rebuys): about one in five to seven.
@@ -70,11 +95,6 @@ export function payoutProblem(pool, payouts) {
     if (sum > pool) return { code: 'fixed', diff: sum - pool };
   }
   return null;
-}
-
-// Each person's result: prize − what they paid. Positive receives, negative sends.
-export function settle(players, s, prizeOf) {
-  return players.map((p) => ({ id: p.id, name: p.name, paid: owed(p, s), prize: prizeOf(p), net: prizeOf(p) - owed(p, s) }));
 }
 
 // Thousands are split by a space that never wraps (owner's wish): 10 000.

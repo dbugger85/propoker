@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { owed, totals, autoPlaces, split, prizes, payoutProblem, formatMoney, groupDigits } from '../js/money.js';
+import { owed, paidOf, dueOf, transfers, totals, autoPlaces, split, prizes, payoutProblem, formatMoney, groupDigits } from '../js/money.js';
 
 const s = { buyIn: 200, fee: 0, rebuy: { price: 200 }, addOn: { price: 100 } };
 const auto = { mode: 'auto', roundTo: 10, minCash: true };
@@ -8,7 +8,7 @@ const auto = { mode: 'auto', roundTo: 10, minCash: true };
 test('what players owe and the pool', () => {
   const players = [{ rebuys: 2, addOn: true, paid: true }, { rebuys: 0, addOn: false, paid: false }];
   assert.equal(owed(players[0], s), 700);
-  assert.deepEqual(totals(players, s), { moneyIn: 900, fees: 0, pool: 900, unpaid: 200 });
+  assert.deepEqual(totals(players, s), { moneyIn: 900, fees: 0, pool: 900, collected: 700, unpaid: 200 }, 'older saves: paid true/false');
   assert.equal(totals(players, { ...s, fee: 20 }).pool, 860);
 });
 
@@ -54,4 +54,29 @@ test('money format', () => {
   assert.equal(formatMoney(-12000, 'SEK'), '−SEK\u00a012\u00a0000');
   assert.equal(groupDigits(1234567), '1\u00a0234\u00a0567');
   assert.equal(groupDigits(950), '950');
+});
+
+test('paying in parts, and owing again after a rebuy', () => {
+  const s = { buyIn: 200, fee: 0, rebuy: { price: 200 }, addOn: { price: 100 } };
+  const p = { rebuys: 0, addOn: false, paidIn: 0 };
+  assert.equal(dueOf(p, s), 200, 'nobody has paid at the start');
+  p.paidIn = 200;
+  assert.equal(dueOf(p, s), 0);
+  p.rebuys = 1;
+  assert.equal(dueOf(p, s), 200, 'a rebuy after paying');
+  p.paidIn = 300;
+  assert.equal(paidOf(p, s), 300);
+  assert.equal(dueOf(p, s), 100);
+  assert.deepEqual(totals([p], s), { moneyIn: 400, fees: 0, pool: 400, collected: 300, unpaid: 100 });
+});
+
+test('the fewest transfers', () => {
+  const t = transfers([{ id: 'a', amount: 700 }, { id: 'b', amount: 100 }, { id: 'c', amount: -200 }, { id: 'd', amount: -200 }, { id: 'e', amount: -400 }]);
+  assert.deepEqual(t, [
+    { from: 'e', to: 'a', amount: 400 },
+    { from: 'c', to: 'a', amount: 200 },
+    { from: 'd', to: 'a', amount: 100 },
+    { from: 'd', to: 'b', amount: 100 },
+  ]);
+  assert.deepEqual(transfers([{ id: 'a', amount: 0 }]), []);
 });

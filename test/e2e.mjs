@@ -63,12 +63,47 @@ try {
   assert.equal(await page.inputValue('#s-rebuy-chips'), '15\u00a0000', 'rebuy chips follow');
   await page.fill('#s-chips', '10000');
   assert.equal(await page.inputValue('#s-chips'), '10\u00a0000');
+  // Typing a chip value keeps the same box (the keyboard stays), and the chips sort when you leave it
+  const firstValue = page.locator('#s-chipset .chip-row:nth-child(1) [data-field="value"]');
+  await firstValue.fill('');
+  await firstValue.type('5000');
+  assert.equal(await page.evaluate(() => document.activeElement.dataset.field), 'value', 'still typing in the same box');
+  await page.click('#s-chipset .chip-row:nth-child(2) [data-field="have"]');
+  await page.waitForTimeout(100);
+  assert.deepEqual(await page.evaluate(() => JSON.parse(localStorage.getItem('propoker.setup')).chipSet.map((c) => c.value)), [100, 500, 1000, 5000], 'sorted by value');
+  assert.equal(await page.evaluate(() => document.activeElement.dataset.field), 'have', 'the box tapped keeps the focus');
+  await page.locator('#s-chipset .chip-row:nth-child(4) [data-field="value"]').fill('25');
+  await page.click('#s-name');
+  await page.waitForTimeout(100);
+  // Your own starting stack
+  await page.click('#s-stacks button:has-text("Choose the chips")');
+  await page.fill('#stack-rows input >> nth=0', '10');
+  await page.fill('#stack-rows input >> nth=1', '10');
+  await page.fill('#stack-rows input >> nth=2', '4');
+  await page.fill('#stack-rows input >> nth=3', '6');
+  assert.match(await text('#stack-total'), /9 250/);
+  await page.click('#stack-save');
+  assert.equal(await page.inputValue('#s-chips'), '9\u00a0250');
+  assert.match(await text('#s-stacks'), /10 × 25/);
+  await page.click('#s-stacks button:has-text("Your own chips")');
+  await page.click('#stack-auto');
+  await page.fill('#s-chips', '10000');
   // A chip in your own colour, from the phone's colour picker
   await page.click('#s-chipset .chip-row:nth-child(2) button.picker');
   await page.click('#pick-list button:has-text("Own colour")');
   await page.$eval('#color-input', (e) => { e.value = '#12ab34'; e.dispatchEvent(new Event('change')); });
   assert.equal(await page.$eval('#s-chipset .chip-row:nth-child(2) circle', (c) => c.getAttribute('fill')), '#12ab34');
   assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('propoker.setup')).chipSet[1].color), '#12ab34');
+  // The level popup: big blind first; the ante can follow it
+  await page.click('#s-levels li:nth-child(2) button');
+  assert.equal(await page.evaluate(() => document.querySelector('#level-blind-fields input').id), 'l-bb');
+  await page.click('#l-ante-bb');
+  assert.equal(await page.inputValue('#l-ante'), '200');
+  await page.fill('#l-bb', '');
+  await page.type('#l-bb', '300');
+  assert.equal(await page.inputValue('#l-ante'), '300', 'a BB ante follows the big blind');
+  assert.equal(await page.inputValue('#l-sb'), '150');
+  await page.click('#l-cancel');
   await page.click('#s-presets button:has-text("Turbo")');
   assert.equal(await page.inputValue('#s-minutes'), '12');
   await page.click('#s-presets button:has-text("Standard")');
@@ -88,9 +123,23 @@ try {
   await page.click('#new-btn');
   assert.match(await page.textContent('#s-levels li:first-child'), /75 \/ 150/, 'kept after a reload');
   await page.click('#s-presets button:has-text("Standard")');
+  // Drag the first break up, to between level 2 and level 3
+  const breakAt = async () => (await page.evaluate(() => JSON.parse(localStorage.getItem('propoker.setup')).levels.findIndex((l) => l.break)));
+  assert.equal(await breakAt(), 4);
+  await page.$eval('#s-levels li.break', (e) => e.scrollIntoView({ block: 'center' }));
+  const grip = await page.locator('#s-levels li.break .drag').first().boundingBox();
+  const target = await page.locator('#s-levels li:nth-child(3)').boundingBox();
+  await page.mouse.move(grip.x + grip.width / 2, grip.y + grip.height / 2);
+  await page.mouse.down();
+  for (let y = grip.y + grip.height / 2; y > target.y + 4; y -= 6) await page.mouse.move(grip.x + grip.width / 2, y);
+  await page.mouse.up();
+  assert.equal(await breakAt(), 2, 'the break moved up two levels');
+  assert.match(await pressed(), /^Custom/);
+  assert.match(await page.textContent('#s-levels li:nth-child(4)'), /3\s*150 \/ 300/, 'level 3 comes after the break');
+  await page.click('#s-presets button:has-text("Standard")');
 
   await page.click('#s-edit-payouts');
-  await page.click('#p-modes button:has-text("Fixed amounts")');
+  await page.click('#p-modes button:text-is("Fixed")');
   await page.fill('#p-rows input >> nth=0', '500');
   await page.fill('#p-rows input >> nth=1', '200');
   assert.deepEqual(await page.$$eval('#p-preview .amount', (a) => a.map((x) => x.textContent.replace(/\s/g, ' '))), ['NOK 1 700', 'NOK 500', 'NOK 200']);
@@ -154,6 +203,18 @@ try {
   assert.equal(await page.evaluate(() => localStorage.getItem('propoker.tableView')), 'grid');
   await shot('7b-tables-list');
   await page.click('#table-view button:has-text("Tables")');
+  // The dealer's place, top middle; the cog turns it off (and remembers)
+  assert.equal(await page.$$eval('#tables-grid .dealer-spot', (l) => l.length), 2);
+  await page.click('#settings-btn');
+  // The coming levels with their expected clock times
+  assert.match(await page.textContent('#g-levels li.now .lv-time'), /^\d\d:\d\d–\d\d:\d\d$/);
+  await page.click('#g-dealer');
+  await page.click('#g-done');
+  assert.equal(await page.$$eval('#tables-grid .dealer-spot', (l) => l.length), 0);
+  assert.equal(await page.evaluate(() => localStorage.getItem('propoker.dealer')), '0');
+  await page.click('#settings-btn');
+  await page.click('#g-dealer');
+  await page.click('#g-done');
   // And to an empty seat at the same table
   const empty = [1, 2, 3, 4, 5, 6].find((s) => !g.players.some((p) => p.table === 1 && p.seat === s));
   assert.equal(empty, undefined, 'six players, six seats');
@@ -178,8 +239,17 @@ try {
   // Money: the pool, paying
   await toPage(3);
   assert.match(await text('#m-facts'), /NOK 2 600/);
+  // Payments: nobody has paid at the start; one pays everything, one pays part
+  assert.match(await page.textContent('#m-unpaid'), /12 owe/);
   await page.click('#m-payments li:first-child button');
+  await page.click('#action-buttons button:has-text("Paid everything")');
   assert.match(await page.textContent('#m-unpaid'), /11 owe/);
+  await page.click('#m-payments li:first-child button');
+  await page.click('#action-buttons button:has-text("Paid part")');
+  await page.fill('#ask-input', '100');
+  await page.click('#ask-ok');
+  assert.match(await text('#m-payments'), /paid NOK 100/);
+  assert.match(await text('#m-facts'), /Still to pay\s*NOK 2 100/);
   await shot('9-money');
 
   // Chip counts: skip to the break, count everyone, then a rebuy adds to a stack
@@ -213,7 +283,7 @@ try {
   await page.click('#count-save');
   g = await game();
   assert.equal(g.players.filter((p) => p.stack != null).length, 12);
-  assert.match(await text('#c-facts'), /Chip leader: \w+, 20 000/);
+  assert.match(await text('#c-facts'), /Leader: \w+, 20 000/);
   await toPage(1);
   const leaderRow = page.locator('#in-list li:has(.badge.leader)');
   assert.equal(await leaderRow.count(), 1);
@@ -281,6 +351,13 @@ try {
   await page.waitForSelector('#screen-summary:not([hidden])');
   assert.match(await page.textContent('#sum-title'), /wins!$/);
   assert.equal(await page.$$eval('#sum-results li', (l) => l.length), 12);
+  // Settle up: transfers, and who has the money paid in
+  assert.equal(await page.isVisible('#sum-holder'), true);
+  const moves = await page.$$eval('#sum-moves li', (l) => l.map((x) => x.textContent.replace(/\s/g, ' ')));
+  assert.ok(moves.some((m) => /^The bank → /.test(m)), `the bank pays out: ${moves}`);
+  await page.click('#sum-holder-pick button');
+  await page.click('#pick-list li:nth-child(2) button');
+  assert.ok((await page.$$eval('#sum-moves li', (l) => l.map((x) => x.textContent))).every((m) => !m.startsWith('The bank')), 'a player has the money now');
   assert.deepEqual(await page.$$eval('#sum-results .amount', (a) => a.map((x) => x.textContent.replace(/\s/g, ' '))), ['NOK 1 900', 'NOK 500', 'NOK 200']);
   await shot('11-summary');
   await page.click('#sum-undo');

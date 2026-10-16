@@ -44,7 +44,7 @@ async function scene(scheme, device = phone) {
     t.clock = { levelIndex: 6, levelMs: (20 * 60 - 754) * 1000, runningSince: now }; // level 6, 12:34 left
     for (const [name, rebuys] of [['Emil', 2], ['Ella', 1], ['Lukas', 1]]) by(name).rebuys = rebuys;
     for (const name of ['Nora', 'Jakob', 'Ella', 'Sofie', 'Maja']) by(name).addOn = true;
-    for (const p of t.players) p.paid = !['Filip', 'Thea'].includes(p.name);
+    for (const p of t.players) p.paidIn = ['Filip', 'Thea'].includes(p.name) ? 0 : p.name === 'Emil' ? 400 : 200 * (1 + p.rebuys) + (p.addOn ? 200 : 0); // Emil still owes a rebuy
     [['Sara', 'Emil', 2], ['Henrik', 'Nora', 4], ['Oskar', 'Emil', 5]].forEach(([name, killer, level], i) =>
       Object.assign(by(name), { status: 'out', outBy: by(killer).id, outLevel: level, outAt: now - (60 - i * 10) * 60000 }));
     const out = t.players.filter((p) => p.status === 'out').sort((a, b) => a.outAt - b.outAt);
