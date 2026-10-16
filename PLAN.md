@@ -1,6 +1,6 @@
 # ProPoker – Implementation Plan
 
-> Renamed from ProBlinds on 2026-10-16 (owner's choice). The first version is built; see CLAUDE.md for how it works.
+> Renamed from ProBlinds on 2026-10-16 (owner's choice). The first version is built and live; see CLAUDE.md for how it works. **Next up: section 10 (table view and chip counts), planned, not built.**
 
 > **Status (2026-10-16):** plan only, nothing built yet. ProPoker is a poker tournament manager that runs on the organiser's own phone or tablet: a blind clock, players and knockouts, several tables with seating and balancing, and the money (buy-ins, rebuys, add-ons, prize pool, payouts, end-of-night summary). It is a sister app to Substitutor (`~/Work/substitutor`) and copies its stack and look. Section 9 holds the decisions so far; add every new decision there, newest last.
 
@@ -237,4 +237,78 @@ Same warm off-white page in light and navy `#0a0f1c` in dark, the same glass var
 - Thousands are split by a space that never wraps (10 000), in both languages, for chips and money.
 - Icon in PrimeTime's style (gradient, glass disc with a rim light, a white symbol), with a spade; the disc and spade a little larger, the spade a little higher.
 - Built in this session: everything in section 7, with README screenshots (`npm run screenshots`). Published as the public repo dbugger85/propoker, live on GitHub Pages at https://dbugger85.github.io/propoker/ (no own domain yet).
+- Next (owner's wish 2026-10-16): a drawn **table view** and **chip counts at breaks**. Planned in section 10, not built yet.
 
+## 10. Next: table view and chip counts (planned 2026-10-16, not built)
+
+Two features that fit together: the table view shows each seat's latest chip count. Build the chip counts first (smaller, and the table view then has something to show), then the table view. Each step can be opened and tried.
+
+### 10.1 Chip counts at breaks
+
+**What it's for:** at a break the organiser goes round the tables and types in each player's stack. The app then knows who has how many chips, not only what they bought.
+
+**Where:**
+- At every break the clock page shows a **Count chips** button under the facts (and the break overlay mentions it). It can also be opened at any time from the cog, and from a player's options ("Chip count…" for one player).
+- The count opens a popup (`#count-dialog`, a scrolling dialog like the payouts editor) with every player still in, **table by table, in seat order**, so you can walk round the table. Each row: name, seat, a number box (`inputmode="numeric"`, prefilled with the last count if there is one, else empty), and the stack in big blinds next to it as you type.
+- Enter in a box jumps to the next box (fast counting on a phone).
+- At the bottom: **Counted so far** vs **Chips in play** (`T.chipsInPlay()`), and the difference in plain words: "12 500 too many" / "2 000 missing" / "Adds up". A mismatch is a warning, not a block (someone may have miscounted or a rebuy wasn't entered); Save still works. Players left empty keep their last count (or none).
+- **Save** stores the counts; **Cancel** throws them away.
+
+**Data** (in `propoker.tournament`):
+- On each player: `stack: number | null` (the last counted stack) and `stackLevel: number | null` (the level number when counted).
+- On the tournament: `counts: [{ at, level, total }]`, a short history for the summary (optional).
+- Rebuys and add-ons after a count add their chips to `stack` (so the count stays useful until the next one); a knockout sets `stack` to 0 / null.
+- Saving a count goes through `T.change()` so **Undo** covers it.
+
+**Rules (`tournament.js`, pure, with tests):**
+- `countStacks(t, { id: stack }, now)` sets the stacks, records the level.
+- `countedTotal(t)` and `countDifference(t)` (counted − chips in play, for players with a count).
+- `chipLeader(t)`: the player still in with the biggest counted stack (ties: all of them).
+- `stackInBB(stack, level)` → whole big blinds.
+- Tests: totals, difference, leader, rebuy after a count, undo.
+
+**Shown:**
+- Players page: the stack under the seat ("Table 1, seat 4 · 23 400 · 29 BB") and a small crown/"Chip leader" badge. Optional sort: by seat (default) or by stack.
+- Clock facts: "Chip leader: Nora, 41 200" as a fact tile once there's a count (replaces nothing; the facts grid gets a fifth tile or the leader goes in the status line; decide when building).
+- Summary: the last count's chip leader before the end is not needed; keep the summary as it is.
+- Share text unchanged.
+
+**Translations:** every new text into `NO` (the i18n test will catch missing ones).
+
+**e2e:** at a break, open Count chips, fill all boxes, check the difference line, save, check the Players page shows stacks and the leader; a rebuy afterwards adds to the stack; Undo removes the count.
+
+### 10.2 Table view (a drawn poker table)
+
+**What it's for:** the Tables page shows each table as a real poker table seen from above, a green felt oval with the seats around the edge, instead of the grid of seat buttons. Like Substitutor's field view (`renderField()` and the `.pitch` styles are the model to copy).
+
+**Look:**
+- An oval (stadium shape) in felt glass (`--felt`, the same tinted glass as the clock), a rim in a darker "rail" colour (new variable `--rail`, light and dark sets), a thin inner line, and "Table 2" written faintly in the middle with the number of players.
+- Seats as round markers placed evenly around the oval (seat 1 at the bottom middle, then clockwise, like the dealer's view). Each marker: the seat number small on top, the name (shortened with an ellipsis), and the latest chip count small underneath when there is one. Empty seats are faint dashed circles with the number only.
+- Markers in the clock's glass style (white text on dark felt glass), like Substitutor's player chips.
+- The chip leader's marker gets a gold ring; players who must move (pending moves) pulse amber with an arrow to their new seat number.
+
+**Placing the seats** (pure function in `tables.js` or a new `tableview.js`, tested): `seatPositions(seats)` → `[{ seat, x, y }]` in percent of the box, evenly spaced along the oval's edge (use the stadium's perimeter so spacing looks even on the long sides, not plain angles). Works for 2–12 seats.
+
+**Using it:**
+- Tap a player, then any seat at any table: swap or move, exactly as now (`tapSeat()` and `swapSeats()` stay). The chosen marker lifts and the free/target seats get a ring, like Substitutor's "Swap with…".
+- Tap an empty seat first: nothing (as now).
+- The pending-moves banner stays above the tables.
+
+**Layout:**
+- Phone: one table per screen width, stacked down the Tables page (scrolling), the oval about 330×220 px. A small "list" toggle at the top switches back to the current seat grid for people who prefer it (`setup` or tournament setting `tableView: 'drawn' | 'grid'`, default drawn).
+- Tablet sideways: in the right panel, the tables stacked; with only one table (final table) it fills the panel.
+- Tablet upright: two tables side by side if there's room (≥ 680 px wide).
+
+**Accessibility:** markers are buttons with `aria-label` "Seat 4, Nora, 23 400 chips"; empty "Seat 5, empty".
+
+**Translations, tests:** new texts into `NO`; unit test for `seatPositions` (count, all inside the box, evenly spaced); e2e: swap two players on the drawn table across tables, screenshot the Tables page; update `npm run screenshots` (the README's `phone-tables.png` and `ipad-tables.png`) and the README text.
+
+### 10.3 Order of work
+1. Chip-count rules + tests (`tournament.js`).
+2. Count chips popup, the break button, stacks on the Players page, chip leader.
+3. e2e for counting; translations.
+4. `seatPositions` + test.
+5. The drawn table on the Tables page (phone), tap to move/swap.
+6. Tablet layouts, the grid/drawn toggle.
+7. Stacks and leader on the drawn table; pending moves on it.
+8. e2e, screenshots, README, CLAUDE.md, this section's status → built.

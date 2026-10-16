@@ -1,6 +1,6 @@
 # ProPoker
 
-A poker tournament manager for the organiser's own phone or tablet: a blind clock with sounds, players and knockouts, rebuys and add-ons, several tables with seat draw and balancing, the chip set, the prize pool and payouts, and an end-of-night summary for the group chat. A sister app to Substitutor (`~/Work/substitutor`): same stack, same glass look. `PLAN.md` has the plan; section 9 is the dated log of every decision the owner made (add new ones there, newest last).
+A poker tournament manager for the organiser's own phone or tablet: a blind clock with sounds, players and knockouts, rebuys and add-ons, several tables with seat draw and balancing, the chip set, the prize pool and payouts, and an end-of-night summary for the group chat. A sister app to Substitutor (`~/Work/substitutor`): same stack, same glass look. `PLAN.md` has the plan; section 9 is the dated log of every decision the owner made (add new ones there, newest last). **Next up is PLAN.md section 10: chip counts at breaks, then a drawn table view. Planned, not built; build in the order of 10.3.**
 
 The owner is a beginner: explain in plain words. Commit and push only when asked, and never put the claude.ai session link in commits.
 
