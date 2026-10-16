@@ -241,6 +241,7 @@ export const NO = {
   '{n} BB': '{n} BB',
   'Sort by stack': 'Sorter etter stack',
   'Sort by seat': 'Sorter etter plass',
+  'Sort by value': 'Sorter etter verdi',
   'Chip count…': 'Tell sjetonger…',
   'Chips for {name}': 'Sjetonger for {name}',
   'Last count {chips}, level {n}': 'Sist talt {chips}, nivå {n}',

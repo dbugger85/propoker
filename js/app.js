@@ -405,8 +405,10 @@ function renderChipSet() {
         if (v == null) return;
         c.value = v;
         chipsChanged(false);
+        $('s-sort-chips').hidden = chipsInOrder();
       });
-      value.addEventListener('change', () => setTimeout(sortChipRows)); // after the next box has the focus
+      // On leaving the box (blur, not change: change doesn't always fire once the thousands space is added)
+      value.addEventListener('blur', () => setTimeout(sortChipRows)); // after the next box has the focus
       const have = el('input', { type: 'text', inputmode: 'numeric', min: '0', value: boxText(c.have), placeholder: '–', 'aria-label': tr('You have'), 'data-field': 'have' });
       have.addEventListener('input', () => {
         c.have = have.value.trim() === '' ? null : num(have, 0);
@@ -428,17 +430,20 @@ function renderChipSet() {
       ]);
     }),
   );
+  $('s-sort-chips').hidden = chipsInOrder();
   renderStacks();
 }
 
 // Puts the chips in order of value. If you had tapped into another chip box,
 // the same box gets the focus again after the rows are drawn anew.
+const chipsInOrder = () => setup.chipSet.every((c, i, a) => !i || a[i - 1].value <= c.value);
+
 function sortChipRows() {
   const box = document.activeElement;
   const row = box?.closest?.('#s-chipset .chip-row');
   const keep = row && { chip: setup.chipSet[Number(row.dataset.i)], field: box.dataset.field };
   const sorted = [...setup.chipSet].sort((a, b) => a.value - b.value);
-  if (sorted.every((c, i) => c === setup.chipSet[i])) return;
+  if (sorted.every((c, i) => c === setup.chipSet[i])) return ($('s-sort-chips').hidden = true);
   setup.chipSet = sorted;
   saveS();
   renderChipSet();
@@ -462,7 +467,8 @@ function renderStacks() {
   ].filter(Boolean));
 }
 
-// After a change to the chip set: the blinds follow the smallest chip.
+$('s-sort-chips').addEventListener('click', sortChipRows);
+
 // After a change to the chip set: the blinds follow the smallest chip. While
 // typing (`redraw` false) the chip rows themselves are left alone, or the box
 // would be swapped for a new one and the keyboard would close after every digit.

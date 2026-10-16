@@ -75,6 +75,14 @@ try {
   await page.locator('#s-chipset .chip-row:nth-child(4) [data-field="value"]').fill('25');
   await page.click('#s-name');
   await page.waitForTimeout(100);
+  // Chips out of order (as from an older version): "Sort by value" shows, and sorts them
+  assert.equal(await page.isVisible('#s-sort-chips'), false, 'in order: no button');
+  await page.evaluate(() => { const s = JSON.parse(localStorage.getItem('propoker.setup')); s.chipSet.reverse(); localStorage.setItem('propoker.setup', JSON.stringify(s)); });
+  await page.reload();
+  await page.click('#new-btn');
+  await page.click('#s-sort-chips');
+  assert.deepEqual(await page.evaluate(() => JSON.parse(localStorage.getItem('propoker.setup')).chipSet.map((c) => c.value)), [25, 100, 500, 1000]);
+  assert.equal(await page.isVisible('#s-sort-chips'), false);
   // Your own starting stack
   await page.click('#s-stacks button:has-text("Choose the chips")');
   await page.fill('#stack-rows input >> nth=0', '10');
