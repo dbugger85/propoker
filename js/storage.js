@@ -25,6 +25,7 @@ export const DEFAULT_SETUP = {
   breakMinutes: 10,
   anteStyle: 'none',
   levels: [],
+  customLevels: null, // your own levels, kept while you look at a preset, so Custom brings them back
   rebuy: { on: true, price: 200, chips: 10000, untilLevel: 4 },
   addOn: { on: true, price: 200, chips: 15000 },
   lateUntilLevel: 4,

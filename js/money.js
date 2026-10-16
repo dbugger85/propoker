@@ -81,11 +81,5 @@ export function settle(players, s, prizeOf) {
 const NBSP = '\u00a0';
 export const groupDigits = (n) => `${n < 0 ? '−' : ''}${String(Math.round(Math.abs(n))).replace(/\B(?=(\d{3})+(?!\d))/g, NBSP)}`;
 
-export function formatMoney(amount, currency = 'NOK', locale = 'en') {
-  try {
-    const parts = new Intl.NumberFormat(locale === 'no' ? 'nb-NO' : 'en-GB', { style: 'currency', currency, maximumFractionDigits: 0, minimumFractionDigits: 0 }).formatToParts(amount);
-    return parts.map((p) => (p.type === 'group' || (p.type === 'literal' && /\s/.test(p.value)) ? NBSP : p.type === 'minusSign' ? '−' : p.value)).join('');
-  } catch {
-    return `${groupDigits(amount)}${NBSP}${currency}`;
-  }
-}
+// Money: always the currency code first, then the amount, in every language (owner's wish): NOK 1 000.
+export const formatMoney = (amount, currency = 'NOK') => `${amount < 0 ? '−' : ''}${currency}${NBSP}${groupDigits(Math.abs(amount))}`;

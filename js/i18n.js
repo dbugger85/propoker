@@ -93,7 +93,7 @@ export const NO = {
   Standard: 'Standard',
   Deep: 'Dyp',
   Custom: 'Egen',
-  'your own': 'din egen',
+  'Your own': 'Din egen',
   'Minutes per level': 'Minutter per nivå',
   'Minutes per break': 'Minutter per pause',
   Antes: 'Ante',
@@ -153,7 +153,7 @@ export const NO = {
   'Choose how many places are paid and what percent of the prize pool each gets.': 'Velg hvor mange som får premie og hvor mange prosent av potten hver får.',
   'Fixed amounts for some places, for example the buy-in back for 3rd. The rest of the prize pool goes to the winner.':
     'Faste beløp for noen plasser, for eksempel buy-in tilbake for 3. plass. Resten av premiepotten går til vinneren.',
-  'the rest': 'resten',
+  'The rest': 'Resten',
   'Add place': 'Legg til plass',
   'Remove place': 'Fjern plass',
   'Round prizes to': 'Rund av premiene til',

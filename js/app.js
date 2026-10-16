@@ -116,7 +116,7 @@ function toast(message, action) {
 
 const locale = lang === 'no' ? 'nb-NO' : 'en-GB';
 const chips = groupDigits;
-const cash = (n, currency = (game ?? setup).settings?.currency ?? setup.currency) => formatMoney(n, currency, lang);
+const cash = (n, currency = (game ?? setup).settings?.currency ?? setup.currency) => formatMoney(n, currency);
 const ord = (n) => (lang === 'no' ? `${n}.` : `${n}${[, 'st', 'nd', 'rd'][(n % 100 >> 3) ^ 1 && n % 10] || 'th'}`);
 const blindsText = (l) => `${chips(l.sb)} / ${chips(l.bb)}`;
 const dateText = (time) => new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short', year: 'numeric' }).format(time);
@@ -222,6 +222,8 @@ let showAllLevels = false;
 const ANTES = [['none', 'None'], ['bb', 'BB ante'], ['classic', 'Classic']];
 
 function saveS() {
+  // Your own levels are kept on their own, so looking at a preset never loses them
+  if (setup.preset === 'custom') setup.customLevels = structuredClone(setup.levels);
   saveSetup(setup);
 }
 
@@ -264,7 +266,7 @@ function renderSetup() {
 function renderSetupParts() {
   $('s-currency').replaceChildren(
     picker(setup.currency, async () => {
-      const v = await pickFrom(tr('Currency'), CURRENCIES.map((c) => ({ value: c, label: c, sub: formatMoney(1000, c, lang) })), setup.currency);
+      const v = await pickFrom(tr('Currency'), CURRENCIES.map((c) => ({ value: c, label: c })), setup.currency);
       if (v) {
         setup.currency = v;
         saveS();
@@ -277,7 +279,7 @@ function renderSetupParts() {
     ...[...PRESET_ORDER, 'custom'].map((p) =>
       el('button', { type: 'button', 'aria-pressed': String(setup.preset === p), onclick: () => choosePreset(p) }, [
         tr(p === 'custom' ? 'Custom' : p[0].toUpperCase() + p.slice(1)),
-        el('span', { class: 'seg-sub' }, p === 'custom' ? tr('your own') : tr('{m} min', { m: PRESETS[p].minutes })),
+        el('span', { class: 'seg-sub' }, p === 'custom' ? tr('Your own') : tr('{m} min', { m: PRESETS[p].minutes })),
       ]),
     ),
   );
@@ -422,15 +424,21 @@ $('s-add-chip').addEventListener('click', () => {
 
 const estimatedPool = () => Math.max(0, setup.players.length * (setup.buyIn - (setup.fee || 0)));
 
+// Turbo, Standard and Deep are always the defaults. Custom brings back your own
+// levels; the first time, it starts from the structure you were on.
 function choosePreset(p) {
   setup.preset = p;
   if (p !== 'custom') {
     setup.levelMinutes = PRESETS[p].minutes;
     setup.breakMinutes = PRESETS[p].breakMinutes;
-    setNum($('s-minutes'), setup.levelMinutes);
-    setNum($('s-break'), setup.breakMinutes);
     rebuildLevels();
+  } else if (setup.customLevels?.length) {
+    setup.levels = structuredClone(setup.customLevels);
+    setup.levelMinutes = setup.levels.find((l) => !l.break)?.minutes ?? setup.levelMinutes;
+    setup.breakMinutes = setup.levels.find((l) => l.break)?.minutes ?? setup.breakMinutes;
   }
+  setNum($('s-minutes'), setup.levelMinutes);
+  setNum($('s-break'), setup.breakMinutes);
   saveS();
   renderSetupParts();
 }
@@ -569,7 +577,7 @@ function renderLevelList(ul, levels, { from = 0, now = -1, onEdit, limit = Infin
       el('li', { class: [l.break ? 'break' : '', i === now ? 'now' : ''].join(' ') }, [
         el('button', { type: 'button', onclick: () => onEdit(i) }, l.break
           ? [el('span', { class: 'lv-n' }, ''), el('span', { class: 'lv-blinds' }, tr('Break')), el('span', { class: 'lv-ante' }, ''), el('span', { class: 'lv-min' }, tr('{m} min', { m: l.minutes }))]
-          : [el('span', { class: 'lv-n' }, String(n)), el('span', { class: 'lv-blinds' }, blindsText(l)), el('span', { class: 'lv-ante' }, l.ante ? tr('ante {a}', { a: chips(l.ante) }) : ''), el('span', { class: 'lv-min' }, tr('{m} min', { m: l.minutes }))]),
+          : [el('span', { class: 'lv-n' }, String(n)), el('span', { class: 'lv-blinds' }, blindsText(l)), el('span', { class: 'lv-ante' }, l.ante ? tr('Ante {a}', { a: chips(l.ante) }) : ''), el('span', { class: 'lv-min' }, tr('{m} min', { m: l.minutes }))]),
       ]),
     );
   });
@@ -662,14 +670,14 @@ function editPayouts(current, pool, entrants, buyIn, currency) {
       });
     }
     if (p.mode === 'fixed') {
-      rows.push(el('div', { class: 'pay-row' }, [el('span', {}, ord(1)), el('span', { class: 'pay-fixed muted' }, tr('the rest')), el('span', { class: 'pay-unit' }, '')]));
+      rows.push(el('div', { class: 'pay-row' }, [el('span', {}, ord(1)), el('span', { class: 'pay-unit' }, ''), el('span', { class: 'pay-fixed muted' }, tr('The rest'))]));
       p.fixed.forEach((a, i) => {
         const input = el('input', { type: 'text', inputmode: 'numeric', min: '0', value: boxText(a), 'aria-label': ord(i + 2) });
         input.addEventListener('input', () => {
           p.fixed[i] = num(input, 0) ?? 0;
           renderPreview();
         });
-        rows.push(el('label', { class: 'pay-row' }, [el('span', {}, ord(i + 2)), input, el('span', { class: 'pay-unit' }, currency)]));
+        rows.push(el('label', { class: 'pay-row money' }, [el('span', {}, ord(i + 2)), el('span', { class: 'pay-unit' }, currency), input]));
       });
     }
     $('p-rows').replaceChildren(...rows);
@@ -1457,7 +1465,7 @@ function openDeal() {
     return sum === total;
   };
   inputs.forEach((x) => x.addEventListener('input', check));
-  $('deal-rows').replaceChildren(...left.map((p, i) => el('label', { class: 'pay-row' }, [el('span', {}, `${ord(i + 1)} ${p.name}`), inputs[i], el('span', { class: 'pay-unit' }, S().currency)])));
+  $('deal-rows').replaceChildren(...left.map((p, i) => el('label', { class: 'pay-row money' }, [el('span', {}, `${ord(i + 1)} ${p.name}`), el('span', { class: 'pay-unit' }, S().currency), inputs[i]])));
   check();
   $('deal-cancel').onclick = () => dlg.close();
   $('deal-ok').onclick = () => {

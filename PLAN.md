@@ -241,6 +241,8 @@ Same warm off-white page in light and navy `#0a0f1c` in dark, the same glass var
 - Number boxes (owner's wish 2026-10-16): **right-aligned, not centred**, and **with the thousands split** (10 000) as you type. They're text boxes that open the number keyboard (`inputmode`), since a `type="number"` box can't show the space.
 - Input boxes (owner's wish 2026-10-16): **no glass look**, but recessed wells (a faint fill, a hairline border, a soft green border while typing). Buttons stay glass.
 - Chips (owner's wish 2026-10-16): **drawn as vector graphics** (SVG: six edge spots and an inner ring) instead of CSS gradients, which looked fuzzy; white and yellow chips get grey spots and a darker edge so they show on a light background. **Own colour…** in the colour list picks any colour with the phone's colour picker.
+- Money (owner's wish 2026-10-16): **always the currency code first**, the same in every language and currency: NOK 1 000, SEK 1 000, EUR 1 000 (no kr, € or £), also beside the payout and deal boxes. The currency stays, because it's what tells money apart from chip amounts.
+- Own blinds (owner's wish 2026-10-16): Turbo / Standard / Deep are always the defaults; **Custom** keeps your own levels separately (`customLevels`), so switching to a preset to compare never loses them, and no "are you sure?" is needed. Editing a level while on a preset starts a new own list from that preset.
 
 ## 10. Table view and chip counts (planned 2026-10-16, built 2026-10-16)
 

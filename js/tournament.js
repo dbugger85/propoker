@@ -17,7 +17,7 @@ let lastId = 0;
 export const newId = () => `p${Date.now().toString(36)}${(lastId++).toString(36)}`;
 
 export function createTournament(setup, now, rng = Math.random) {
-  const { players: list, knownNames, ...settings } = setup;
+  const { players: list, knownNames, customLevels, ...settings } = setup;
   const levels = (setup.levels?.length ? setup.levels : buildLevels(setup)).map((l) => ({ ...l }));
   const base = list.map((p) => ({ id: p.id, name: p.name, status: 'in', rebuys: 0, addOn: false, paid: false, place: null, outBy: null, outLevel: null, outAt: null, chipsOut: 0, stack: null, stackLevel: null }));
   const { tables, players } = seatAll(base, settings.seatsPerTable, settings.randomSeats, rng);

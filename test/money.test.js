@@ -49,9 +49,9 @@ test('fixed amounts, the rest to the winner', () => {
 });
 
 test('money format', () => {
-  assert.equal(formatMoney(2200, 'NOK', 'no'), '2\u00a0200\u00a0kr');
-  assert.equal(formatMoney(2200, 'EUR', 'en'), '€2\u00a0200');
-  assert.equal(formatMoney(-12000, 'NOK', 'en'), '−NOK\u00a012\u00a0000');
+  assert.equal(formatMoney(2200, 'NOK'), 'NOK\u00a02\u00a0200');
+  assert.equal(formatMoney(2200, 'EUR'), 'EUR\u00a02\u00a0200');
+  assert.equal(formatMoney(-12000, 'SEK'), '−SEK\u00a012\u00a0000');
   assert.equal(groupDigits(1234567), '1\u00a0234\u00a0567');
   assert.equal(groupDigits(950), '950');
 });

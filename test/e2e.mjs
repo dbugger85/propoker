@@ -73,6 +73,21 @@ try {
   assert.equal(await page.inputValue('#s-minutes'), '12');
   await page.click('#s-presets button:has-text("Standard")');
   assert.match(await page.textContent('#s-levels li:first-child'), /50 \/ 100/);
+  // Your own levels: editing one makes it Custom; a preset is the default again, Custom brings yours back
+  const pressed = () => page.textContent('#s-presets button[aria-pressed="true"]');
+  await page.click('#s-levels li:first-child button');
+  await page.fill('#l-bb', '150');
+  await page.click('#level-form button[type="submit"]');
+  assert.match(await pressed(), /^Custom/);
+  assert.match(await page.textContent('#s-levels li:first-child'), /75 \/ 150/);
+  await page.click('#s-presets button:has-text("Standard")');
+  assert.match(await page.textContent('#s-levels li:first-child'), /50 \/ 100/, 'back to the default');
+  await page.click('#s-presets button:has-text("Custom")');
+  assert.match(await page.textContent('#s-levels li:first-child'), /75 \/ 150/, 'your own levels again');
+  await page.reload();
+  await page.click('#new-btn');
+  assert.match(await page.textContent('#s-levels li:first-child'), /75 \/ 150/, 'kept after a reload');
+  await page.click('#s-presets button:has-text("Standard")');
 
   await page.click('#s-edit-payouts');
   await page.click('#p-modes button:has-text("Fixed amounts")');
