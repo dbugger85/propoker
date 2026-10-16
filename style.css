@@ -248,6 +248,7 @@ input[inputmode="numeric"], input[inputmode="decimal"] { font-variant-numeric: t
 .row input { flex: 1; min-width: 0; }
 .grow { flex: 1; }
 .stack { display: flex; flex-direction: column; gap: 8px; }
+.share-settings { display: block; margin: 0 auto; }
 .share-links { display: flex; justify-content: space-between; gap: 8px; margin-top: 4px; }
 .share-links button.link { min-height: 44px; }
 

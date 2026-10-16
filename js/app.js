@@ -10,6 +10,7 @@ import { CURRENCIES, prizes, payoutProblem, formatMoney, groupDigits, owed, paid
 import { results, shareText, mostKnockouts, settlement, BANK } from './summary.js';
 import { CHIP_COLORS, makeStack, enoughFor, colourUp, smallestChip, sortChips, chipSvg, chipHex, isCustomColor } from './chips.js';
 import { lang, LANGS, FLAGS, tr, setLang, translatePage } from './i18n.js';
+import { pickSettings, encodeSettings, decodeSettings, applySettings, encodeTournament, decodeTournament } from './share.js';
 import { unlockAudio, alert, keepScreenOn, releaseScreen } from './alerts.js';
 
 const $ = (id) => document.getElementById(id);
@@ -1929,16 +1930,106 @@ async function checkAway() {
   saveSeen(Date.now());
 }
 
-function start() {
+// ---------- settings in a link ----------
+
+// A link: the share sheet, else copied, else shown
+async function shareLink(title, url) {
+  if (navigator.share) {
+    try {
+      await navigator.share({ title, url });
+      return;
+    } catch (e) {
+      if (e?.name === 'AbortError') return;
+    }
+  }
+  try {
+    await navigator.clipboard.writeText(url);
+    toast(tr('Link copied'));
+  } catch {
+    await ask({ title, text: url, cancel: tr('Close') });
+  }
+}
+
+const linkTo = (hash) => `${location.origin}${location.pathname}#${hash}`;
+
+// The settings with the players' names (owner's wish)
+$('share-settings').addEventListener('click', async () => shareLink(tr('Poker settings'), linkTo(`s=${await encodeSettings(pickSettings(setup))}`)));
+
+// Hand the running tournament over to another phone or tablet
+$('g-handover').addEventListener('click', async () => {
+  $('settings-dialog').close();
+  const ok = await ask({ title: tr('Continue on another device'), text: tr('Makes a link with the whole tournament: players, seats, the clock, payments and chip counts. Open it on the other device and carry on there. The two don’t keep each other up to date, so use only the new one afterwards.'), ok: tr('Make the link') });
+  if (!ok) return;
+  save();
+  await shareLink(S().name || tr('Poker night'), linkTo(`t=${await encodeTournament(game)}`));
+});
+
+// Opened from a tournament link: carry on with it here.
+async function openSharedTournament() {
+  const code = location.hash.match(/^#t=([A-Za-z0-9_-]+)/)?.[1];
+  if (!code) return false;
+  history.replaceState(null, '', location.pathname + location.search); // the link is used once
+  const t = await decodeTournament(code);
+  if (!t) {
+    toast(tr('This link is broken'));
+    return false;
+  }
+  const left = t.players.filter((p) => p.status === 'in').length;
+  const where = [t.settings.name, tr('{n} of {m} players left', { n: left, m: t.players.length }), tr('Level {n}', { n: levelNumber(t.levels, t.clock.levelIndex) })].filter(Boolean).join(' · ');
+  const replaces = game && !game.finished ? `\n\n${tr('It replaces the tournament on this device.')}` : '';
+  const ok = await ask({ title: tr('Continue this tournament here?'), text: where + replaces, ok: tr('Continue here') });
+  if (!ok) return false;
+  game = t;
+  saveGame(game);
+  saveSeen(Date.now());
+  if (game.finished) {
+    renderSummary();
+    show('summary');
+  } else {
+    openGame();
+    goToPage(0);
+  }
+  return true;
+}
+
+// Opened from a settings link: ask, then use them for the next tournament.
+async function openSharedSettings() {
+  if (await openSharedTournament()) return true;
+  const code = location.hash.match(/^#s=([A-Za-z0-9_-]+)/)?.[1];
+  if (!code) return false;
+  history.replaceState(null, '', location.pathname + location.search); // the link is used once
+  const shared = await decodeSettings(code);
+  if (!shared) {
+    toast(tr('This link is broken'));
+    return false;
+  }
+  const what = [tr('Buy-in {sum}', { sum: formatMoney(shared.buyIn, shared.currency) }), tr('{chips} chips', { chips: chips(shared.startingChips) }), shared.players ? tr('{n} players', { n: shared.players.length }) : null].filter(Boolean).join(' · ');
+  const ok = await ask({ title: tr('Use these settings?'), text: `${what}\n\n${tr('They replace your current setup for the next tournament.')}${shared.players ? '' : ` ${tr('Your players stay.')}`}`, ok: tr('Use them') });
+  if (!ok) return false;
+  setup = applySettings(setup, shared);
+  setup.smallestChip = smallestChip(setup.chipSet);
+  saveS();
+  if (game && !game.finished) {
+    toast(tr('Saved for the next tournament'));
+    return false;
+  }
+  renderSetup();
+  show('setup');
+  return true;
+}
+
+async function start() {
   if (game?.finished) {
     renderSummary();
     show('summary');
   } else if (game) {
     openGame();
-    checkAway();
+    if (!/^#[st]=/.test(location.hash)) checkAway(); // a link asks its own question
   } else {
     renderHome();
     show('home');
   }
+  await openSharedSettings();
 }
 start();
+addEventListener('hashchange', openSharedSettings);

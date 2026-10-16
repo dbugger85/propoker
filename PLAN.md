@@ -256,6 +256,7 @@ Same warm off-white page in light and navy `#0a0f1c` in dark, the same glass var
 - Level popup (owner's wish 2026-10-16): **big blind first**, then small blind (half filled in) and ante; "Ante same as big blind" sets a BB ante, and an ante equal to the big blind follows it as you type.
 - Chip set (owner's wish 2026-10-16): typing a value no longer closes the keyboard after each digit (the chip rows aren't redrawn while typing); the chips **sort by value** when you leave a value box, and the box you tapped next keeps the focus.
 - Starting stack (owner's wish 2026-10-16): **Choose the chips** under "Each player starts with" sets how many of each chip every player gets (`setup.startStack`); the starting chips follow the total; Automatic goes back to the app's suggestion. Typing a new starting total, or changing a chip that's in it, goes back to the suggestion.
+- Links (owner's wish 2026-10-16): **Share these settings** at the bottom of setup makes a link (`#s=`) with all the settings and the players' names (not the tournament name or the chips you own); opening it asks "Use these settings?" and then fills in setup. **Continue on another device** in the cog makes a link (`#t=`) with the whole running tournament (not the undo history) to carry on with it on another phone or tablet; opening it asks first. The two devices don't sync afterwards (a hand-over). Both links are packed with deflate into the address after "#", so nothing goes through a server (`js/share.js`).
 
 ## 10. Table view and chip counts (planned 2026-10-16, built 2026-10-16)
 

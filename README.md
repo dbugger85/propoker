@@ -67,6 +67,10 @@ Tap **Start tournament**. The seat draw shows where everyone sits.
 ### 3. The end
 When one player is left, the summary shows everyone's place, who knocked them out, the prizes and **settle up**: each player's prize minus what they paid. **Share** sends the full ranking, prizes and settle-up to the group chat. **Back to the tournament** undoes the last knockout if it was a mistake. The last tournament stays on the start page, so you can share it again later.
 
+## Share and hand over
+- **Share these settings** (at the bottom of setup) sends a link with your buy-in, chips, blinds, rebuys, payouts and players. Whoever opens it gets the same setup, after a question first.
+- **Continue on another device** (the cog during a tournament) sends a link with the whole tournament, to carry on from another phone or tablet: the clock, players, seats, payments and chip counts come along. Use only the new device afterwards; the two don't keep each other up to date.
+
 ## Install it like an app
 - **Android (Chrome)**: tap **Install** on the start page.
 - **iPhone/iPad (Safari)**: tap **Share** → **Add to Home Screen**.

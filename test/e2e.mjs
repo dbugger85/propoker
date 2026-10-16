@@ -148,6 +148,29 @@ try {
   assert.equal(await page.$eval('#screen-setup', (e) => e.innerText.includes('null')), false, 'no "null" on the page');
   await shot('3-setup');
 
+  // Share the settings as a link (with the names), and open it on another phone
+  await page.evaluate(() => { navigator.share = async (d) => { window.sharedUrl = d.url; }; });
+  await page.click('#share-settings');
+  const sharedUrl = await page.waitForFunction(() => window.sharedUrl).then((h) => h.jsonValue());
+  assert.match(sharedUrl, /#s=z[A-Za-z0-9_-]+$/);
+  const other = await browser.newPage({ viewport: { width: 390, height: 844 } });
+  other.on('pageerror', (e) => errors.push(e.message));
+  await other.goto(base + '?lang=en');
+  await other.evaluate(() => { localStorage.clear(); localStorage.setItem('propoker.installHidden', '1'); });
+  await other.goto(sharedUrl.replace(/^.*#/, base + '?lang=en#'));
+  await other.waitForSelector('#ask-dialog[open]');
+  assert.equal(await other.textContent('#ask-title'), 'Use these settings?');
+  await other.click('#ask-ok');
+  await other.waitForSelector('#screen-setup:not([hidden])');
+  const theirs = await other.evaluate(() => JSON.parse(localStorage.getItem('propoker.setup')));
+  const mineNow = await page.evaluate(() => JSON.parse(localStorage.getItem('propoker.setup')));
+  assert.deepEqual(theirs.payouts, mineNow.payouts, 'the payouts came along');
+  assert.deepEqual(theirs.levels, mineNow.levels, 'and the blinds');
+  assert.equal(theirs.seatsPerTable, 6);
+  assert.deepEqual(theirs.players.map((p) => p.name), NAMES, 'and the names');
+  assert.equal(await other.evaluate(() => location.hash), '', 'the link is used once');
+  await other.close();
+
   await page.click('#start-btn');
   await page.waitForSelector('#ask-dialog[open]');
   assert.equal(await page.textContent('#ask-title'), 'The seat draw');
@@ -218,6 +241,30 @@ try {
   // And to an empty seat at the same table
   const empty = [1, 2, 3, 4, 5, 6].find((s) => !g.players.some((p) => p.table === 1 && p.seat === s));
   assert.equal(empty, undefined, 'six players, six seats');
+
+  // Continue on another device: the whole tournament in a link
+  await page.evaluate(() => { window.sharedUrl = null; navigator.share = async (d) => { window.sharedUrl = d.url; }; });
+  await page.click('#settings-btn');
+  await page.click('#g-handover');
+  await page.click('#ask-ok');
+  const handover = await page.waitForFunction(() => window.sharedUrl).then((h) => h.jsonValue());
+  assert.match(handover, /#t=z[A-Za-z0-9_-]+$/);
+  const tablet = await browser.newPage({ viewport: { width: 390, height: 844 } });
+  tablet.on('pageerror', (e) => errors.push(e.message));
+  await tablet.goto(base + '?lang=en');
+  await tablet.evaluate(() => { localStorage.clear(); localStorage.setItem('propoker.installHidden', '1'); });
+  await tablet.goto(handover.replace(/^.*#/, base + '?lang=en#'));
+  await tablet.waitForSelector('#ask-dialog[open]');
+  assert.equal(await tablet.textContent('#ask-title'), 'Continue this tournament here?');
+  assert.match(await tablet.textContent('#ask-text'), /12 of 12 players left · Level 2/);
+  await tablet.click('#ask-ok');
+  await tablet.waitForSelector('#screen-game:not([hidden])');
+  const there = await tablet.evaluate(() => JSON.parse(localStorage.getItem('propoker.tournament')));
+  g = await game();
+  assert.deepEqual(there.players, g.players, 'same players and seats');
+  assert.deepEqual(there.clock, g.clock, 'same clock');
+  assert.equal(await tablet.textContent('#c-level'), await page.textContent('#c-level'));
+  await tablet.close();
 
   // Players: a rebuy, a knockout with Undo
   await toPage(1);
