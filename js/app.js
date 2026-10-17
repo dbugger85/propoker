@@ -2091,8 +2091,12 @@ function applyTheme() {
   const [icon, label] = THEMES[theme];
   $('theme-toggle').replaceChildren(el('span', { class: 'theme-icon' }, icon), el('span', { class: 'theme-label' }, tr(label)));
   $('theme-toggle').setAttribute('aria-label', tr('Theme: {theme}. Tap to change.', { theme: tr(label) }));
-  const dark = theme === 'dark' || (theme === 'auto' && darkQuery.matches);
-  document.querySelector('meta[name="theme-color"]').content = dark ? '#0a0f1c' : '#f1eee8';
+  barColour();
+}
+
+// The phone's bar takes the page's background (your accent colour's, if you chose one)
+function barColour() {
+  document.querySelector('meta[name="theme-color"]').content = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim() || '#f1eee8';
 }
 $('theme-toggle').addEventListener('click', () => {
   theme = NEXT_THEME[theme];
@@ -2138,7 +2142,7 @@ function setupInstall() {
 
 // ---------- the TV view ----------
 
-const PANELS = { blinds: 'Blind levels', prizes: 'Prizes', players: 'Players left', tables: 'Tables', out: 'Knocked out' };
+const PANELS = { blinds: 'Blind levels', prizes: 'Prizes', players: 'Players', tables: 'Tables', out: 'Knocked out' };
 const CYCLES = [[0, 'Off'], [10, '10 s'], [20, '20 s'], [30, '30 s'], [60, '1 min']];
 const TV_SOUNDS = [['tv', 'On the TV'], ['main', 'On the main screen']];
 let tvPanel = 0; // which of the chosen panels shows now
@@ -2242,12 +2246,17 @@ const TV_RENDER = {
       el('ul', { class: 'tv-rows' }, T.prizeList(game).map((a, i) => el('li', {}, [el('span', { class: 'tv-lv' }, ord(i + 1)), el('span', { class: 'tv-name' }, byPlace.get(i + 1)?.name ?? ''), el('span', { class: 'tv-amount' }, cash(a))]))),
     ];
   },
+  // Everyone: those still in (biggest stack first), then those out (best place first)
   players() {
     const leaders = new Set(T.chipLeader(game).map((p) => p.id));
-    const list = [...T.inPlay(game)].sort((a, b) => (b.stack ?? -1) - (a.stack ?? -1) || a.name.localeCompare(b.name));
-    return [el('ul', { class: list.length > 10 ? 'tv-rows two-cols' : 'tv-rows' }, list.map((p) => el('li', { class: leaders.has(p.id) ? 'leader' : '' }, [
+    const inPlay = [...T.inPlay(game)].sort((a, b) => (b.stack ?? -1) - (a.stack ?? -1) || a.name.localeCompare(b.name));
+    const out = game.players.filter((p) => p.status !== 'in').sort((a, b) => (a.place ?? 99) - (b.place ?? 99));
+    const all = [...inPlay, ...out];
+    const seat = (p) => (all.length > 10 ? `${tr('T{n}', { n: p.table })} · ${p.seat}` : tr('Table {t}, seat {s}', { t: p.table, s: p.seat })); // short in two columns
+    const cls = ['tv-rows', all.length > 10 ? 'two-cols' : '', all.length > 22 ? 'many' : ''].filter(Boolean).join(' ');
+    return [el('ul', { class: cls }, all.map((p) => el('li', { class: p.status !== 'in' ? 'out' : leaders.has(p.id) ? 'leader' : '' }, [
       el('span', { class: 'tv-name' }, p.name),
-      el('span', { class: 'tv-time' }, p.stack != null ? stackText(p.stack) : tr('Table {t}, seat {s}', { t: p.table, s: p.seat })),
+      el('span', { class: 'tv-time' }, p.status !== 'in' ? (p.place ? tr('Out, {place}', { place: ord(p.place) }) : tr('Out')) : p.stack != null ? stackText(p.stack) : seat(p)),
     ])))];
   },
   tables() {
@@ -2380,6 +2389,7 @@ function applyBrand() {
   if (brand.logo) $('brand-logo').src = brand.logo;
   $('brand-logo').classList.toggle('plate', brand.plate);
   document.body.classList.toggle('has-logo', !!brand.logo);
+  barColour();
   if (TV_MODE) renderTvBrand();
   if ($('look-dialog').open) renderLook();
 }

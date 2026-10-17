@@ -107,10 +107,10 @@ The **⋮** button on each one has **New tournament with this setup** (a copy wi
 On a computer connected to a TV, the TV can show its own big screen while you run the tournament from yours.
 
 1. Connect the computer to the TV (for example with HDMI) and set the display to **extend** the screen, not mirror it.
-2. In the tournament, open the cog (⚙) and tap **TV view**. Choose what to show, then **Open TV view**. A new window opens. If the browser blocks it, allow pop-ups for the page.
+2. In the tournament, open the cog (⚙) and tap **TV view** at the top. Choose what to show, then **Open TV view**. A new window opens. If the browser blocks it, allow pop-ups for the page.
 3. Drag the new window to the TV and click **Start the TV view**. It goes full screen and can play the sounds.
 
-The TV shows the clock, the blinds, the next blinds and the antes in big letters, and under them the players left, the average stack, the prize pool, the next break and the chip values. Beside the clock it can show the **Blind levels** (with the clock time each one starts), the **Prizes**, the **Players left** (with their stacks after a chip count), the **Tables** seen from above, and who was **Knocked out**. Tick the ones you want: with more than one, they change every 10, 20 or 30 seconds or every minute (or **Off** to keep the first). Untick everything for just the clock. **Sounds** chooses whether the beeps and chimes play on the TV or on your own screen. A new level or a break is announced big on the TV.
+The TV shows the clock, the blinds, the next blinds and the antes in big letters, and under them the players left, the average stack, the prize pool, the next break and the chip values. Beside the clock it can show the **Blind levels** (with the clock time each one starts), the **Prizes**, the **Players** (everyone: those still in with their stacks after a chip count, then those out with their place), the **Tables** seen from above, and who was **Knocked out**. Tick the ones you want: with more than one, they change every 10, 20 or 30 seconds or every minute (or **Off** to keep the first). Untick everything for just the clock. **Sounds** chooses whether the beeps and chimes play on the TV or on your own screen. A new level or a break is announced big on the TV.
 
 Everything you do on your screen (knockouts, rebuys, pausing, a new level) shows on the TV within a second. Both windows must be in the same browser on the same computer. The TV keeps the right time by itself, even if you close your window. Move the mouse on the TV to see **What to show** and **Full screen**. The TV is always in the dark look.
 
@@ -123,7 +123,7 @@ Everything you do on your screen (knockouts, rebuys, pausing, a new level) shows
 
 - **Logo**: **Choose a logo** and pick a picture (PNG, JPG, WebP or SVG, up to 2 MB). It replaces the ProPoker name at the top of the app and shows big on the TV. **White backing behind the logo** helps a dark logo on the dark screens. **Remove logo** brings back ProPoker.
 - **Name on the TV**: for example "Friday Poker Club", shown over the clock on the TV (otherwise the tournament's name).
-- **Accent colour**: ProPoker green, blue, violet, teal, orange or red, or **+** for a colour of your own. It colours the buttons, the highlights and the big clock, in both light and dark mode.
+- **Accent colour**: ProPoker green, blue, violet, teal, orange or red, or **+** for a colour of your own. It colours the whole app in both light and dark mode: the background, the buttons, the highlights, the big clock and the tables. Gold (money) and red stay as they are.
 
 It's kept on this device for every tournament, and it comes along in **Export everything**.
 

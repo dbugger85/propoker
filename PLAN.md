@@ -269,6 +269,8 @@ Same warm off-white page in light and navy `#0a0f1c` in dark, the same glass var
 - Tour pictures (owner's wish 2026-10-17): the start page's pictures follow the theme: dark pictures in dark mode, light in light mode, also when the theme is chosen by hand.
 - TV view (owner's wish 2026-10-17): a second window (`?tv`) for the TV, in the same browser on the same computer, kept up to date through the browser's storage event, so no server. The clock big, with chosen panels beside it (blind levels, prizes, players left, tables, knocked out) that change every 10–60 s or stay, and facts and chip values under the clock (each can be turned off). Sounds play on the TV or on the main screen, not both. Always dark.
 - Your logo and colours (owner's wish 2026-10-17, like ProQuiz): a logo (in place of the ProPoker name and big on the TV, with an optional white backing), a name for the TV and an accent colour that re-colours the app in light and dark. Kept on the device, included in Export everything.
+- TV and look fixes (owner's wish 2026-10-17): the TV's drawn tables always lie flat (3:2), also with one table; the accent colour now re-colours the whole app (background, cards, lines, glass, glows, seats, the announcement), not just the green; **TV view** is at the top of the cog.
+- Smaller clock (owner's wish 2026-10-17): the big clock is about a quarter smaller in the app (phone, tablet, sideways) and on the TV, leaving more room below; on the TV the facts and chip values get bigger. The TV's Players panel lists everyone, knocked-out players last with their place.
 
 ## 10. Table view and chip counts (planned 2026-10-16, built 2026-10-16)
 

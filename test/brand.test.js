@@ -13,6 +13,7 @@ test('an accent re-hues the green, for light and dark', () => {
   assert.equal(accentVars('#2563eb', false)['--green'], 'hsl(221 70% 30%)');
   assert.equal(accentVars('#2563eb', true)['--green'], 'hsl(221 65% 55%)');
   assert.equal(accentVars('#808080', false)['--green'], 'hsl(0 0% 30%)', 'grey stays grey');
+  assert.equal(accentVars('#2563eb', true)['--bg'], 'hsl(221 47% 7%)', 'the background too');
   const css = accentCss('#2563eb');
   assert.match(css, /^:root \{ --green: hsl\(221/);
   assert.match(css, /:root\[data-theme="dark"\]/);

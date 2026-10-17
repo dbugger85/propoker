@@ -628,6 +628,11 @@ try {
   await admin.click('#ask-cancel'); // no rebuy
   await admin.click('#pick-list li button:has-text("Ben")');
   await tvPage.waitForFunction(() => document.querySelector('#tv-facts .fact-value')?.textContent === '5 / 6');
+  // The players panel lists everyone, those out last
+  await admin.evaluate(() => localStorage.setItem('propoker.tv', JSON.stringify({ ...JSON.parse(localStorage.getItem('propoker.tv')), panels: ['players'] })));
+  await tvPage.waitForFunction(() => document.getElementById('tv-panel-title').textContent === 'Players');
+  assert.equal(await tvPage.$$eval('#tv-panel li', (l) => l.length), 6);
+  assert.match(await tvPage.textContent('#tv-panel li:last-child'), /^Anna.*Out, 6th$/);
   // Pausing too
   await admin.click('#page-dots button[data-page="0"], #panel-tabs button:has-text("Clock")').catch(() => {});
   await admin.evaluate(() => document.getElementById('c-pause').click()); // start the clock

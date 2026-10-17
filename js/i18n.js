@@ -76,7 +76,7 @@ export const NO = {
   'For example Friday Poker Club': 'For eksempel Fredagspokerklubben',
   'Accent colour': 'Aksentfarge',
   'Blind levels': 'Blindnivåer',
-  'Players left': 'Spillere igjen',
+  'Out, {place}': 'Ute, {place}',
   'Off': 'Av',
   '10 s': '10 s',
   '20 s': '20 s',
