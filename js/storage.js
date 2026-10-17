@@ -1,11 +1,14 @@
-// Saves the setup, the tournament in progress and the last summary in the browser (localStorage).
+// Saves the tournaments in the browser (localStorage). The open one is in
+// `propoker.setup` and `propoker.tournament` (its id in `propoker.current`);
+// the others are filed away whole in `propoker.saved.<id>` ({ id, created, setup, game }).
 
 import { buildLevels } from './blinds.js';
 import { DEFAULT_CHIPS, smallestChip } from './chips.js';
 
 const SETUP_KEY = 'propoker.setup';
 const GAME_KEY = 'propoker.tournament';
-const LAST_KEY = 'propoker.lastSummary';
+const CURRENT_KEY = 'propoker.current';
+const SAVED_PREFIX = 'propoker.saved.';
 const SEEN_KEY = 'propoker.seen';
 const THEME_KEY = 'propoker.theme';
 const INSTALL_KEY = 'propoker.installHidden';
@@ -76,8 +79,62 @@ export const saveSetup = (s) => write(SETUP_KEY, s);
 export const loadGame = () => read(GAME_KEY);
 export const saveGame = (t) => write(GAME_KEY, t);
 export const clearGame = () => remove(GAME_KEY);
-export const loadLast = () => read(LAST_KEY);
-export const saveLast = (summary) => write(LAST_KEY, summary);
+
+// ---------- several tournaments ----------
+
+const newKey = () => `t${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+
+// The open tournament's id and when it was made
+export function currentInfo() {
+  const info = read(CURRENT_KEY);
+  if (info?.id) return info;
+  const made = { v: 1, id: newKey(), created: loadGame()?.startedAt ?? Date.now() };
+  write(CURRENT_KEY, made);
+  return made;
+}
+
+// Worth keeping: started, or with players or a name
+export const worthKeeping = (setup, game) => !!(game || setup?.players?.length || setup?.name?.trim());
+
+export function savedTournaments() {
+  const out = [];
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key.startsWith(SAVED_PREFIX)) {
+        const e = read(key);
+        if (e?.setup) out.push(e);
+      }
+    }
+  } catch {}
+  return out;
+}
+
+export const saveSaved = (entry) => write(SAVED_PREFIX + entry.id, { v: 1, ...entry });
+export const deleteSaved = (id) => remove(SAVED_PREFIX + id);
+
+// Puts the open tournament away (when worth keeping) and opens `entry`
+// ({ id, created, setup, game }; without an id it's a new one). The saved names go along.
+export function switchTo(entry) {
+  const setup = read(SETUP_KEY);
+  const game = loadGame();
+  const info = currentInfo();
+  if (worthKeeping(setup, game)) saveSaved({ id: info.id, created: info.created, setup, game });
+  const id = entry.id ?? newKey();
+  deleteSaved(id);
+  write(CURRENT_KEY, { v: 1, id, created: entry.created ?? Date.now() });
+  write(SETUP_KEY, { ...entry.setup, v: 1, knownNames: setup?.knownNames ?? entry.setup.knownNames ?? [] });
+  if (entry.game) saveGame(entry.game);
+  else clearGame();
+}
+
+// Forgets the open tournament: a blank one takes its place (the saved names stay).
+export function clearCurrent() {
+  const names = read(SETUP_KEY)?.knownNames ?? [];
+  remove(CURRENT_KEY);
+  clearGame();
+  write(SETUP_KEY, { v: 1, knownNames: names });
+}
 
 // When the app was last open with the clock showing, to notice that it ran while the app was closed.
 export function loadSeen() {

@@ -61,6 +61,7 @@
       <h1>ProPoker</h1>
     </div>
     <div class="top-actions">
+      <button id="home-btn" type="button" class="icon home" aria-label="Main menu" data-t-label hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V20a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V9.5"/></svg></button>
       <button id="settings-btn" type="button" class="icon cog" aria-label="Tournament settings" data-t-label hidden><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
       <button id="lang-toggle" type="button" class="lang-toggle"></button>
       <button id="theme-toggle" type="button" class="theme" aria-label="Theme"></button>
@@ -72,17 +73,15 @@
     <!-- Home -->
     <section id="screen-home" class="screen" hidden>
       <button id="new-btn" type="button" class="primary big" data-t>New tournament</button>
-      <div id="last-card" class="last-card" hidden>
-        <div class="last-head">
-          <span class="muted small" data-t>Last tournament</span>
-          <span id="last-date" class="muted small"></span>
-        </div>
-        <div id="last-title" class="last-title"></div>
-        <div id="last-line" class="muted"></div>
-        <div class="share-links">
-          <button id="last-share" type="button" class="link" data-t>Share again</button>
-        </div>
+      <section id="t-section" class="tournaments" hidden>
+        <h3 data-t>Your tournaments</h3>
+        <ul id="t-list" class="list"></ul>
+      </section>
+      <div class="share-links">
+        <button id="export-btn" type="button" class="link" data-t>Export everything</button>
+        <button id="import-btn" type="button" class="link" data-t>Import</button>
       </div>
+      <input id="import-file" type="file" accept=".json,application/json" hidden>
       <p class="intro" data-t>ProPoker runs your poker tournament from one phone or tablet: a big blind clock with sounds, players and knockouts, rebuys and add-ons, seating and table balancing on tables drawn from above, chip counts at the breaks, who has paid, the prize pool and payouts, and at the end who sends what to whom.</p>
       <ul class="promise" aria-label="About ProPoker" data-t-label>
         <li data-t>100% free</li>
@@ -196,7 +195,10 @@
         <button id="s-edit-payouts" type="button" class="link edit-link" data-t>Change payouts</button>
       </fieldset>
 
-      <button id="share-settings" type="button" class="link edit-link share-settings" data-t>Share these settings</button>
+      <div class="share-links">
+        <button id="share-settings" type="button" class="link" data-t>Share these settings</button>
+        <button id="reset-setup" type="button" class="link reset" data-t>Reset all settings</button>
+      </div>
       <p id="setup-error" class="error"></p>
       <div class="row">
         <button id="setup-back" type="button" data-t>Back</button>
@@ -285,11 +287,12 @@
       <p class="muted small" data-t>Prize won minus what each player bought</p>
       <ul id="sum-settle" class="list"></ul>
       <div id="sum-facts" class="facts"></div>
-      <button id="sum-share" type="button" class="primary big" data-t>Share</button>
+      <button id="sum-share" type="button" class="primary big" data-t>Share results</button>
       <div class="row">
-        <button id="sum-undo" type="button" class="grow" data-t>Back to the tournament</button>
-        <button id="sum-new" type="button" class="grow" data-t>New tournament</button>
+        <button id="sum-home" type="button" class="grow" data-t>Main menu</button>
+        <button id="sum-new" type="button" class="grow" data-t>Play again</button>
       </div>
+      <p class="sub-action"><button id="sum-undo" type="button" class="link"></button></p>
     </section>
   </main>
 

@@ -31,7 +31,7 @@ On a tablet held sideways, the clock fills the left half like a TV, with players
 ## How to run a tournament
 
 ### 1. Set up
-Tap **New tournament** and fill in from top to bottom. Everything is saved as you type, and the players are kept for next time. Names from earlier nights show up as buttons you can tap to add.
+Tap **New tournament** and fill in from top to bottom. Everything is saved as you type. Names from earlier nights show up as buttons you can tap to add. Tap **Edit** next to them to remove names you don't need any more.
 
 - **Tournament**: name, currency, buy-in, starting chips, and an optional house fee per player (for food and drinks; it doesn't go into the prize pool).
 - **Chips**: your chip colours and what each is worth. Pick a colour from the list, or **Own colour…** for any colour. The chips sort by value (or tap **Sort by value**). Fill in **You have** to check that your chips are enough for everyone. The blinds are rounded to your smallest chip. The app suggests how many of each chip every player starts with; tap **Choose the chips** to set your own.
@@ -47,7 +47,7 @@ Tap **New tournament** and fill in from top to bottom. Everything is saved as yo
   <img src="screenshots/phone-chips.png" width="240" alt="The chip set in setup">
 </p>
 
-**Share these settings** at the bottom sends a link with all of this and the players' names. Whoever opens it is asked first, and then gets the same setup.
+**Share these settings** at the bottom sends a link with all of this and the players' names. Whoever opens it is asked first, and then gets the same setup. **Reset all settings** next to it puts every setting back to how it was the first time (the players and saved names stay); the message that follows has **Undo**.
 
 Tap **Start tournament**. The seat draw shows where everyone sits.
 
@@ -80,15 +80,22 @@ At a break, tap **Count chips** under the clock (or in the cog at any time, or *
 Nobody has paid at the start. Tap a player on the Money page (or **Payment** in their options) and choose **Paid everything**, **Paid part** or **Not paid**. The list shows who still owes what, and a rebuy after paying shows them owing again.
 
 ### 5. The end
-When one player is left, the summary shows everyone's place, who knocked them out and the prizes. **Settle up** lists who sends what to whom, with as few transfers as possible. Choose who has the money already paid in (**The bank**, someone not playing, or a player), and they pay it out. **Won and lost** shows each player's prize minus what they bought. **Share** sends the ranking, prizes and transfers to the group chat. **Back to the tournament** undoes the last knockout if it was a mistake. The last tournament stays on the start page, so you can share it again later.
+When one player is left, the summary shows everyone's place, who knocked them out and the prizes. **Settle up** lists who sends what to whom, with as few transfers as possible. Choose who has the money already paid in (**The bank**, someone not playing, or a player), and they pay it out. **Won and lost** shows each player's prize minus what they bought. **Share results** sends the ranking, prizes and transfers to the group chat. **Main menu** goes back to your tournaments, and **Play again** starts a new one with the same setup and players. **Undo the last knockout** (or **Undo the deal**) below them takes you back into the game if it was a mistake.
 
 <p>
   <img src="screenshots/phone-summary.png" width="240" alt="The results at the end">
   <img src="screenshots/phone-settle.png" width="240" alt="Who sends what to whom">
 </p>
 
+## Your tournaments
+The main menu lists every tournament you've made: ones still being set up, ones being played (with the level and how many are left) and finished ones (with the winner). Tap one to go back to its setup, the game or the results. The **house button** at the top takes you to the main menu at any time, also in the middle of a game; the clock keeps running, and tapping the game takes you back. Only one clock runs at a time: opening another tournament pauses the one you left.
+
+The **⋮** button on each one has **New tournament with this setup** (a copy with the same settings and players, under a new name) and **Delete**. **New tournament** at the top starts from scratch.
+
+**Export everything** saves one file with all your tournaments, settings and saved names (or sends it with the share sheet). **Import** reads such a file back, for example on a new phone; tournaments you already have are replaced by the file's copy, and the rest stay.
+
 ## Carry on on another device
-**Continue on another device** (in the cog) sends a link with the whole tournament: the clock, players, seats, payments and chip counts. Open it on the other phone or tablet and carry on there. Use only the new device afterwards; the two don't keep each other up to date.
+**Continue on another device** (in the cog) sends a link with the whole tournament: the clock, players, seats, payments and chip counts. Open it on the other phone or tablet and carry on there; it's added to that device's tournaments. Use only the new device afterwards; the two don't keep each other up to date.
 
 ## Install it like an app
 - **Android (Chrome)**: tap **Install** on the start page.

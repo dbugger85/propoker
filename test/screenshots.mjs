@@ -100,7 +100,7 @@ try {
         localStorage.removeItem('propoker.tournament');
       });
       await setup.reload();
-      await setup.click('#new-btn');
+      await setup.click('#t-list li button.open');
       await setup.$eval('#s-chipset', (e) => e.closest('fieldset').scrollIntoView());
       await setup.evaluate(() => window.scrollBy(0, -12));
       await setup.screenshot({ path: out('phone-chips') });

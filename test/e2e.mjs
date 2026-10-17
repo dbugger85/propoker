@@ -7,7 +7,7 @@
 // Screenshots go to test/screenshots/ (ignored by git).
 
 import { spawn } from 'node:child_process';
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import assert from 'node:assert/strict';
 import { chromium } from 'playwright-core';
@@ -79,7 +79,7 @@ try {
   assert.equal(await page.isVisible('#s-sort-chips'), false, 'in order: no button');
   await page.evaluate(() => { const s = JSON.parse(localStorage.getItem('propoker.setup')); s.chipSet.reverse(); localStorage.setItem('propoker.setup', JSON.stringify(s)); });
   await page.reload();
-  await page.click('#new-btn');
+  await page.click('#t-list li button.open'); // the tournament being set up, from the main menu
   await page.click('#s-sort-chips');
   assert.deepEqual(await page.evaluate(() => JSON.parse(localStorage.getItem('propoker.setup')).chipSet.map((c) => c.value)), [25, 100, 500, 1000]);
   assert.equal(await page.isVisible('#s-sort-chips'), false);
@@ -128,7 +128,7 @@ try {
   await page.click('#s-presets button:has-text("Custom")');
   assert.match(await page.textContent('#s-levels li:first-child'), /75 \/ 150/, 'your own levels again');
   await page.reload();
-  await page.click('#new-btn');
+  await page.click('#t-list li button.open');
   assert.match(await page.textContent('#s-levels li:first-child'), /75 \/ 150/, 'kept after a reload');
   await page.click('#s-presets button:has-text("Standard")');
   // Drag the first break up, to between level 2 and level 3
@@ -437,28 +437,61 @@ try {
   assert.ok((await page.$$eval('#sum-moves li', (l) => l.map((x) => x.textContent))).every((m) => !m.startsWith('The bank')), 'a player has the money now');
   assert.deepEqual(await page.$$eval('#sum-results .amount', (a) => a.map((x) => x.textContent.replace(/\s/g, ' '))), ['NOK 1 900', 'NOK 500', 'NOK 200']);
   await shot('11-summary');
+  assert.equal(await page.textContent('#sum-undo'), 'Undo the last knockout');
   await page.click('#sum-undo');
   assert.equal(await page.isVisible('#screen-game'), true);
   assert.equal((await game()).finished, false);
   await knockOut();
   await page.waitForSelector('#screen-summary:not([hidden])');
 
-  // Back home: the last tournament
+  // Play again: a new tournament with the same setup and players
   await page.click('#sum-new');
-  await page.click('#ask-ok');
   assert.equal(await page.isVisible('#screen-setup'), true);
   assert.equal(await page.$$eval('#s-players li', (l) => l.length), 12, 'same players again');
-  await page.click('#setup-back');
-  assert.equal(await page.isVisible('#last-card'), true);
 
-  // A deal: end early with three left
-  await page.click('#new-btn');
+  // Saved names: remove a player, forget their name, add someone new
+  const gone = await page.textContent('#s-players li:first-child .name');
+  await page.click('#s-players li:first-child button');
+  assert.ok((await page.$$eval('#known-names button', (b) => b.map((x) => x.textContent))).includes(gone));
+  await page.click('#known-names button.link'); // Edit
+  await shot('2-forget', false);
+  await page.click(`#known-names button.forget:text-is("${gone}")`);
+  assert.equal(await page.isVisible('#known-names'), false, 'no saved names left to show');
+  assert.equal((await page.evaluate(() => JSON.parse(localStorage.getItem('propoker.setup')))).knownNames.includes(gone), false);
+  await page.fill('#new-player-name', 'Zed');
+  await page.press('#new-player-name', 'Enter');
+
+  // Reset all settings: back to the defaults, players stay; Undo brings them back
+  await page.fill('#s-buyin', '350');
+  await page.click('#reset-setup');
+  await page.click('#ask-ok');
+  assert.equal(await page.inputValue('#s-buyin'), '200');
+  assert.equal(await page.$$eval('#s-players li', (l) => l.length), 12, 'the players stay');
+  await page.click('#toast-action'); // Undo
+  assert.equal(await page.inputValue('#s-buyin'), '350');
+  await page.fill('#s-buyin', '200');
+  await page.click('#setup-back');
+
+  // The main menu lists both: the new one and the finished one
+  const subs = () => page.$$eval('#t-list li .sub', (l) => l.map((x) => x.textContent));
+  assert.equal((await subs()).length, 2);
+  assert.ok((await subs()).some((s) => /^Not started · 12 players$/.test(s)));
+  assert.ok((await subs()).some((s) => /^Winner: .+ · 12 players$/.test(s)));
+  await shot('1b-menu', false);
+
+  // A deal: start the new one from the list, end early with three left
+  await page.click('#t-list li button.open:has-text("Not started")');
   await page.click('#start-btn');
   await page.click('#ask-ok');
   for (let i = 0; i < 9; i++) {
     await knockOut();
     if (await isOpen('moves-dialog')) await page.click('#moves-done');
   }
+  // To the main menu and back into the game, the clock still where it was
+  await page.click('#home-btn');
+  assert.ok((await subs()).some((s) => /Level \d+ · 3 of 12 players left/.test(s)), `${await subs()}`);
+  await page.click('#t-list li button.open:has-text("3 of 12")');
+  assert.equal(await page.isVisible('#screen-game'), true);
   await page.click('#settings-btn');
   await page.click('#g-end');
   await page.waitForSelector('#deal-dialog[open]');
@@ -472,6 +505,29 @@ try {
   await shot('12-deal', false);
   await page.click('#deal-ok');
   await page.waitForSelector('#screen-summary:not([hidden])');
+  assert.equal(await page.textContent('#sum-undo'), 'Undo the deal');
+
+  // Export everything, delete one, import the file: it's back
+  await page.click('#sum-home');
+  await page.evaluate(() => { navigator.canShare = () => false; });
+  const [download] = await Promise.all([page.waitForEvent('download'), page.click('#export-btn')]);
+  const file = `${shots}/export.json`;
+  await download.saveAs(file);
+  const exported = JSON.parse(readFileSync(file, 'utf8'));
+  assert.equal(exported.tournaments.length, 2);
+  await page.click('#t-list li:last-child button.more');
+  await page.click('#action-buttons button:text-is("Delete")');
+  await page.click('#ask-ok');
+  assert.equal((await subs()).length, 1);
+  await page.setInputFiles('#import-file', file);
+  await page.click('#ask-ok');
+  assert.equal((await subs()).length, 2, 'imported again');
+  // A new tournament with a copy of a setup
+  await page.click('#t-list li:first-child button.more');
+  await page.click('#action-buttons button:has-text("New tournament with this setup")');
+  assert.equal(await page.$$eval('#s-players li', (l) => l.length), 12);
+  await page.click('#setup-back');
+  assert.equal((await subs()).length, 3);
 
   // Fixing mistakes: a rebuy by mistake brings someone back in; take it back
   const fix = await browser.newPage({ viewport: { width: 390, height: 844 } });

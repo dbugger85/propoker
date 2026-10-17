@@ -1,7 +1,7 @@
 // Screens, buttons and popups. The rules live in blinds.js, clock.js,
 // tables.js, money.js and tournament.js (no DOM code there).
 
-import { loadSetup, saveSetup, loadGame, saveGame, clearGame, loadLast, saveLast, loadSeen, saveSeen, loadTheme, saveTheme, loadInstallHidden, saveInstallHidden, loadTableView, saveTableView, loadDealer, saveDealer } from './storage.js';
+import { DEFAULT_SETUP, loadSetup, saveSetup, loadGame, saveGame, currentInfo, worthKeeping, savedTournaments, saveSaved, deleteSaved, switchTo, clearCurrent, loadSeen, saveSeen, loadTheme, saveTheme, loadInstallHidden, saveInstallHidden, loadTableView, saveTableView, loadDealer, saveDealer } from './storage.js';
 import { PRESETS, PRESET_ORDER, buildLevels, anteFor, levelNumber, nextPlay, nextLevel, totalMinutes, playLevel } from './blinds.js';
 import * as C from './clock.js';
 import * as T from './tournament.js';
@@ -175,6 +175,7 @@ function show(name) {
   for (const s of document.querySelectorAll('.screen')) s.hidden = s.id !== `screen-${name}`;
   window.scrollTo(0, 0);
   $('settings-btn').hidden = name !== 'game';
+  $('home-btn').hidden = name === 'home';
   layout();
 }
 
@@ -183,24 +184,174 @@ const fact = (label, value, { sub, gold } = {}) =>
 
 // ---------- home ----------
 
-function renderHome() {
-  const last = loadLast();
-  $('last-card').hidden = !last;
-  if (last) {
-    $('last-date').textContent = dateText(last.at);
-    $('last-title').textContent = last.name;
-    $('last-line').textContent = last.winner ? tr('Winner: {name} · {n} players', { name: last.winner, n: last.players }) : tr('{n} players', { n: last.players });
-  }
+// The main menu lists every tournament: the open one and the ones filed away.
+const startOf = (e) => e.game?.startedAt ?? e.created;
+const entryName = (e) => e.game?.settings.name || e.setup.name?.trim() || tr('Poker night {date}', { date: dateText(startOf(e)) });
+
+function entries() {
+  const list = savedTournaments();
+  if (worthKeeping(setup, game)) list.push({ ...currentInfo(), setup, game, open: true });
+  return list.sort((a, b) => startOf(b) - startOf(a));
 }
 
+function entryStatus(e) {
+  const g = e.game;
+  const n = (g?.players ?? e.setup.players ?? []).length;
+  if (!g) return tr('Not started · {n} players', { n });
+  if (g.finished) {
+    const winner = g.players.find((p) => p.place === 1);
+    return winner && !g.deal ? tr('Winner: {name} · {n} players', { name: winner.name, n }) : tr('Finished · {n} players', { n });
+  }
+  const left = g.players.filter((p) => p.status === 'in').length;
+  return [dateText(g.startedAt), tr('Level {n}', { n: levelNumber(g.levels, g.clock.levelIndex) }), tr('{n} of {m} players left', { n: left, m: n }), C.running(g.clock) ? null : tr('Paused')].filter(Boolean).join(' · ');
+}
+
+const MORE = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>';
+
+function renderHome() {
+  const list = entries();
+  $('t-section').hidden = !list.length;
+  $('export-btn').hidden = !list.length;
+  $('t-list').replaceChildren(
+    ...list.map((e) => {
+      const more = el('button', { type: 'button', class: 'icon more', 'aria-label': tr('Options for {name}', { name: entryName(e) }), onclick: () => entryOptions(e) });
+      more.innerHTML = MORE;
+      return el('li', { class: 'player entry' }, [
+        el('button', { type: 'button', class: 'open', onclick: () => openEntry(e) }, el('span', { class: 'name' }, [entryName(e), el('span', { class: 'sub' }, entryStatus(e))])),
+        more,
+      ]);
+    }),
+  );
+}
+
+// Opens a tournament: its setup, the game or the summary. Only one clock runs:
+// the one put away is paused.
+function openEntry(e) {
+  if (!e.open) {
+    if (game && !game.finished && C.running(game.clock)) {
+      game.clock = C.pause(game.clock, Date.now());
+      save();
+    }
+    switchTo(e);
+    setup = loadSetup();
+    game = loadGame();
+    saveSeen(Date.now());
+  }
+  showAllLevels = false;
+  editingNames = false;
+  if (!game) {
+    renderSetup();
+    show('setup');
+  } else if (game.finished) {
+    renderSummary();
+    show('summary');
+  } else openGame();
+}
+
+// A new tournament with a copy of the setup (players too, a new name)
+function copySetup(e) {
+  if (game && !game.finished && C.running(game.clock)) {
+    game.clock = C.pause(game.clock, Date.now());
+    save();
+  }
+  const copy = structuredClone(e.setup);
+  copy.name = '';
+  copy.players = copy.players.map((p) => ({ id: T.newId(), name: p.name }));
+  openEntry({ setup: copy });
+}
+
+async function entryOptions(e) {
+  const dlg = $('action-dialog');
+  $('action-title').replaceChildren(el('span', {}, entryName(e)));
+  $('action-text').textContent = entryStatus(e);
+  const act = (label, fn, cls = '') => el('button', { type: 'button', class: cls, onclick: () => { dlg.close(); fn(); } }, label);
+  $('action-buttons').replaceChildren(
+    act(!e.game ? tr('Open setup') : e.game.finished ? tr('See the results') : tr('Back to the game'), () => openEntry(e), 'primary'),
+    act(tr('New tournament with this setup'), () => copySetup(e)),
+    act(tr('Delete'), () => deleteEntry(e), 'danger'),
+  );
+  $('action-cancel').onclick = () => dlg.close();
+  dlg.showModal();
+}
+
+async function deleteEntry(e) {
+  const ok = await ask({ title: tr('Delete {name}?', { name: entryName(e) }), text: tr('The setup, the players and the results are gone for good'), ok: tr('Delete'), danger: true });
+  if (!ok) return;
+  if (e.open) {
+    clearCurrent();
+    setup = loadSetup();
+    game = null;
+    releaseScreen();
+  } else deleteSaved(e.id);
+  renderHome();
+  toast(tr('{name} deleted', { name: entryName(e) }));
+}
+
+// "New tournament": a blank one. The open one is filed away first, unless it's still empty.
 $('new-btn').addEventListener('click', () => {
-  renderSetup();
-  show('setup');
+  if (worthKeeping(setup, game)) openEntry({ setup: { players: [] } });
+  else openEntry({ ...currentInfo(), setup, game, open: true });
 });
 
-$('last-share').addEventListener('click', () => {
-  const last = loadLast();
-  if (last) shareOut(last.text);
+$('home-btn').addEventListener('click', goHome);
+function goHome() {
+  $('toast').hidden = true;
+  renderHome();
+  show('home');
+}
+
+// ---------- export and import: one file with everything ----------
+
+$('export-btn').addEventListener('click', async () => {
+  const data = { app: 'ProPoker', v: 1, at: Date.now(), names: setup.knownNames, tournaments: entries().map(({ id, created, setup: s, game: g }) => ({ id, created, setup: s, game: g })) };
+  const name = `propoker-${new Date().toISOString().slice(0, 10)}.json`;
+  const file = new File([JSON.stringify(data)], name, { type: 'application/json' });
+  if (navigator.canShare?.({ files: [file] })) {
+    try {
+      await navigator.share({ files: [file], title: 'ProPoker' });
+      return;
+    } catch (err) {
+      if (err?.name === 'AbortError') return;
+    }
+  }
+  const a = el('a', { href: URL.createObjectURL(file), download: name });
+  document.body.append(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+  toast(tr('Saved as {file}', { file: name }));
+});
+
+$('import-btn').addEventListener('click', () => $('import-file').click());
+$('import-file').addEventListener('change', async () => {
+  const f = $('import-file').files[0];
+  $('import-file').value = '';
+  if (!f) return;
+  let data = null;
+  try {
+    data = JSON.parse(await f.text());
+  } catch {}
+  const list = data?.app === 'ProPoker' && Array.isArray(data.tournaments) ? data.tournaments.filter((t) => t?.id && t.setup) : null;
+  if (!list) return toast(tr('This isn’t a ProPoker file'));
+  const ok = await ask({ title: tr('Import {n} tournaments?', { n: list.length }), text: tr('Ones you already have are replaced by the ones in the file. The others stay'), ok: tr('Import') });
+  if (!ok) return;
+  const info = currentInfo();
+  for (const t of list) {
+    if (t.id === info.id) {
+      // The open one: take the file's copy
+      setup = { ...setup, ...t.setup, knownNames: setup.knownNames };
+      game = t.game ?? null;
+      saveS();
+      if (game) save();
+    } else saveSaved({ id: t.id, created: t.created ?? Date.now(), setup: t.setup, game: t.game ?? null });
+  }
+  if (Array.isArray(data.names)) {
+    const have = new Set(setup.knownNames.map((n) => n.toLowerCase()));
+    setup.knownNames = [...setup.knownNames, ...data.names.filter((n) => typeof n === 'string' && !have.has(n.toLowerCase()))].slice(0, 60);
+    saveS();
+  }
+  renderHome();
+  toast(tr('{n} tournaments imported', { n: list.length }));
 });
 
 async function shareOut(text) {
@@ -333,7 +484,7 @@ function renderSetupParts({ chipRows = true } = {}) {
   );
   const added = new Set(setup.players.map((p) => p.name.toLowerCase()));
   $('known-names').replaceChildren(
-    ...setup.knownNames.filter((name) => !added.has(name.toLowerCase())).map((name) => el('button', { type: 'button', onclick: () => addSetupPlayer(name) }, name)),
+    ...knownButtons(setup.knownNames.filter((name) => !added.has(name.toLowerCase()))),
   );
   renderPayoutBox($('s-payouts'), setup.payouts, estimatedPool(), Math.max(n, 2), setup.buyIn, setup.currency);
   $('setup-error').textContent = '';
@@ -513,6 +664,25 @@ $('s-add-chip').addEventListener('click', () => {
   chipsChanged();
 });
 
+// Names from earlier nights: tap to add. Edit shows a ✕ on each; tap one to forget it.
+let editingNames = false;
+function knownButtons(names) {
+  if (!names.length) return (editingNames = false), [];
+  const forget = (name) => {
+    setup.knownNames = setup.knownNames.filter((n) => n !== name);
+    saveS();
+    renderSetupParts();
+  };
+  return [
+    ...names.map((name) =>
+      editingNames
+        ? el('button', { type: 'button', class: 'forget', 'aria-label': tr('Remove {name}', { name }), onclick: () => forget(name) }, name)
+        : el('button', { type: 'button', onclick: () => addSetupPlayer(name) }, name),
+    ),
+    el('button', { type: 'button', class: 'link', onclick: () => { editingNames = !editingNames; renderSetupParts(); } }, editingNames ? tr('Done') : tr('Edit')),
+  ];
+}
+
 const estimatedPool = () => Math.max(0, setup.players.length * (setup.buyIn - (setup.fee || 0)));
 
 // Turbo, Standard and Deep are always the defaults. Custom brings back your own
@@ -655,8 +825,6 @@ $('start-btn').addEventListener('click', () => {
   setup.knownNames = [...setup.players.map((p) => p.name), ...setup.knownNames.filter((n) => !names.has(n.toLowerCase()))].slice(0, 60);
   saveS();
   game = T.createTournament(setup, Date.now());
-  setup.name = ''; // a new name (with the date) next time
-  saveS();
   saveGame(game);
   openGame();
   goToPage(0);
@@ -1735,15 +1903,8 @@ function finish() {
   game.finishedAt ??= Date.now();
   game.pending = null;
   save();
-  saveLastSummary();
   renderSummary();
   show('summary');
-}
-
-// The home page's "Share again" (saved again when the settle-up changes)
-function saveLastSummary() {
-  const winner = game.players.find((p) => p.place === 1);
-  saveLast({ v: 1, at: game.startedAt, name: S().name, winner: winner?.name, players: game.players.length, text: summaryText() });
 }
 
 const summaryText = () => shareText(game, { tr, cash: (a) => cash(a), when: dateText(game.startedAt) });
@@ -1753,6 +1914,7 @@ function renderSummary() {
   const m = T.money(game);
   const winner = rows[0];
   $('sum-title').textContent = winner ? tr('{name} wins!', { name: winner.name }) : S().name;
+  $('sum-undo').textContent = game.deal ? tr('Undo the deal') : tr('Undo the last knockout');
   const date = dateText(game.startedAt);
   $('sum-line').textContent = [S().name, S().name.includes(date) ? null : date, hoursText(((game.finishedAt ?? Date.now()) - game.startedAt) / 60000)].filter(Boolean).join(' · ');
   $('sum-results').replaceChildren(
@@ -1796,7 +1958,6 @@ function renderMoves() {
       if (!v) return;
       S().holder = v;
       save();
-      saveLastSummary();
       renderSummary();
     }),
   );
@@ -1815,15 +1976,9 @@ $('sum-undo').addEventListener('click', () => {
   save();
   openGame();
 });
-$('sum-new').addEventListener('click', async () => {
-  const ok = await ask({ title: tr('New tournament'), text: tr('This tournament is saved as the last one, so you can share it again from the start page.'), ok: tr('New tournament') });
-  if (!ok) return;
-  clearGame();
-  game = null;
-  releaseScreen();
-  renderSetup();
-  show('setup');
-});
+$('sum-home').addEventListener('click', goHome);
+// Play again: a new tournament with the same setup and players
+$('sum-new').addEventListener('click', () => copySetup({ setup }));
 
 // ---------- pages: swipe on a phone, tabs on a tablet sideways ----------
 
@@ -2017,6 +2172,18 @@ async function shareLink(title, url) {
 const linkTo = (hash) => `${location.origin}${location.pathname}#${hash}`;
 
 // The settings with the players' names (owner's wish)
+// Every setting back to how it was the first time; the players and saved names stay.
+$('reset-setup').addEventListener('click', async () => {
+  const ok = await ask({ title: tr('Reset all settings?'), text: tr('Buy-in, chips, blinds, rebuys, tables and payouts go back to how they were at the start. The players and saved names stay'), ok: tr('Reset'), danger: true });
+  if (!ok) return;
+  const before = structuredClone(setup);
+  saveSetup({ v: 1, players: setup.players, knownNames: setup.knownNames });
+  setup = loadSetup();
+  showAllLevels = false;
+  saveS();
+  renderSetup();
+  toast(tr('Settings reset'), { label: tr('Undo'), onclick: () => { setup = before; saveS(); renderSetup(); } });
+});
 $('share-settings').addEventListener('click', async () => shareLink(tr('Poker settings'), linkTo(`s=${await encodeSettings(pickSettings(setup))}`)));
 
 // Hand the running tournament over to another phone or tablet
@@ -2040,23 +2207,14 @@ async function openSharedTournament() {
   }
   const left = t.players.filter((p) => p.status === 'in').length;
   const where = [t.settings.name, tr('{n} of {m} players left', { n: left, m: t.players.length }), tr('Level {n}', { n: levelNumber(t.levels, t.clock.levelIndex) })].filter(Boolean).join(' · ');
-  const replaces = game && !game.finished ? `\n\n${tr('It replaces the tournament on this device.')}` : '';
-  const ok = await ask({ title: tr('Continue this tournament here?'), text: where + replaces, ok: tr('Continue here') });
+  const ok = await ask({ title: tr('Continue this tournament here?'), text: `${where}\n\n${tr('It’s added to your tournaments.')}`, ok: tr('Continue here') });
   if (!ok) return false;
-  game = t;
-  saveGame(game);
-  saveSeen(Date.now());
-  if (game.finished) {
-    renderSummary();
-    show('summary');
-  } else {
-    openGame();
-    goToPage(0);
-  }
+  openEntry({ created: t.startedAt, game: t, setup: { ...structuredClone(t.settings), levels: structuredClone(t.levels), players: t.players.map((p) => ({ id: p.id, name: p.name })) } });
+  if (!game.finished) goToPage(0);
   return true;
 }
 
-// Opened from a settings link: ask, then use them for the next tournament.
+// Opened from a settings link: ask, then make a new tournament with them.
 async function openSharedSettings() {
   if (await openSharedTournament()) return true;
   const code = location.hash.match(/^#s=([A-Za-z0-9_-]+)/)?.[1];
@@ -2068,25 +2226,22 @@ async function openSharedSettings() {
     return false;
   }
   const what = [tr('Buy-in {sum}', { sum: formatMoney(shared.buyIn, shared.currency) }), tr('{chips} chips', { chips: chips(shared.startingChips) }), shared.players ? tr('{n} players', { n: shared.players.length }) : null].filter(Boolean).join(' · ');
-  const ok = await ask({ title: tr('Use these settings?'), text: `${what}\n\n${tr('They replace your current setup for the next tournament.')}${shared.players ? '' : ` ${tr('Your players stay.')}`}`, ok: tr('Use them') });
+  const ok = await ask({ title: tr('Use these settings?'), text: `${what}\n\n${tr('They become a new tournament.')}`, ok: tr('Use them') });
   if (!ok) return false;
-  setup = applySettings(setup, shared);
-  setup.smallestChip = smallestChip(setup.chipSet);
-  saveS();
+  const fresh = applySettings({ ...structuredClone(DEFAULT_SETUP), knownNames: setup.knownNames }, shared);
+  fresh.smallestChip = smallestChip(fresh.chipSet);
   if (game && !game.finished) {
-    toast(tr('Saved for the next tournament'));
+    // A game is on: file it away for later, don't stop the clock
+    saveSaved({ id: T.newId(), created: Date.now(), setup: fresh, game: null });
+    toast(tr('Saved as a new tournament in the main menu'));
     return false;
   }
-  renderSetup();
-  show('setup');
+  openEntry({ setup: fresh });
   return true;
 }
 
 async function start() {
-  if (game?.finished) {
-    renderSummary();
-    show('summary');
-  } else if (game) {
+  if (game && !game.finished) {
     openGame();
     if (!/^#[st]=/.test(location.hash)) checkAway(); // a link asks its own question
   } else {
