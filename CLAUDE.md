@@ -1,13 +1,13 @@
 # ProPoker
 
-A poker tournament manager for the organiser's own phone or tablet: a blind clock with sounds, players and knockouts, rebuys and add-ons, several tables with seat draw and balancing, the chip set, the prize pool and payouts, and an end-of-night summary for the group chat. A sister app to Substitutor (`~/Work/substitutor`): same stack, same glass look. `PLAN.md` has the plan; section 9 is the dated log of every decision the owner made (add new ones there, newest last). Section 10 (chip counts and the drawn table view) is built.
+A poker tournament manager for the organiser's own phone or tablet: a blind clock with sounds, players and knockouts, rebuys and add-ons, several tables with seat draw and balancing, the chip set, the prize pool and payouts, and an end-of-night summary for the group chat. It keeps several tournaments in a main menu (with a backup file), can show a TV view in a second window, and takes your own logo and colours (like ProQuiz, `~/Work/proquiz`). A sister app to Substitutor (`~/Work/substitutor`): same stack, same glass look. `PLAN.md` has the plan; section 9 is the dated log of every decision the owner made (add new ones there, newest last). Section 10 (chip counts and the drawn table view) is built.
 
 The owner is a beginner: explain in plain words. Commit and push only when asked, and never put the claude.ai session link in commits.
 
 ## Commands
 - `npm start` – serves the app at http://localhost:8000
-- `npm test` – unit tests for the logic (node --test), including "every text is translated"
-- `npm run e2e` – Playwright plays a whole tournament on a phone (12 players, 2 tables, drawn tables and seat swaps, a chip count at a break, rebuy, knockouts, balancing, final table, summary, a deal) plus a tablet sideways and Norwegian. Needs `/usr/bin/chromium`. Screenshots in `test/screenshots/` (gitignored); look at them after UI changes.
+- `npm test` – unit tests for the logic (node --test): blinds (also fitted to a tournament length), clock, tables, money, chips, tournament, summary, links, accent colours, and "every text is translated"
+- `npm run e2e` – Playwright plays a whole tournament on a phone (12 players, 2 tables, drawn tables and seat swaps, a chip count at a break, rebuy, knockouts, balancing, final table, summary, a deal), the setup extras (tournament length, saved names with Edit, Reset all settings), several tournaments (Play again, the main menu list, the house button back into a running game, Export everything / Import, delete, a copy of a setup), a tablet sideways, Norwegian, and a computer with the TV window beside the main one (a knockout and a pause reach the TV, the Players panel, your logo, name, swatches and the colour box). Needs `/usr/bin/chromium`. Screenshots in `test/screenshots/` (gitignored); look at them after UI changes.
 - `npm run screenshots` – the README pictures (`screenshots/`, including the main menu with two made-up filed-away evenings), the start page's tour (`screenshots/tour/*-light.webp` and `*-dark.webp`, via `magick`) and `icons/preview.png`, from a made-up Friday evening (14 players, level 6, the time pinned to 21:12). Run it when the look changes.
 
 Run `npm test` and `npm run e2e` after any change.

@@ -145,7 +145,7 @@ Plain HTML, CSS and JavaScript: no framework and no build step. See [CLAUDE.md](
 ```
 npm install
 npm start            # http://localhost:8000
-npm test             # the rules: blinds, clock, tables, money, chips, links, translations
+npm test             # the rules: blinds, clock, tables, money, chips, links, colours, translations
 npm run e2e          # whole tournaments in a browser (needs Chromium)
 npm run screenshots  # the pictures in this README and on the start page
 ```
