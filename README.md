@@ -4,7 +4,7 @@
 
 ✓ 100% free · ✓ No ads · ✓ No tracking · ✓ No account · ✓ Works offline · ✓ Open source
 
-Open it at **https://dbugger85.github.io/propoker/**. There's nothing to sign up for, and your tournaments are saved only on your own device. It's in English and Norwegian.
+Open it at **https://dbugger85.github.io/propoker/**. There's nothing to sign up for, and your tournaments are saved only on your own device (export them to a file to keep a copy). It's in English and Norwegian.
 
 <p>
   <img src="screenshots/phone-clock-light.png" width="240" alt="The blind clock">
@@ -22,6 +22,8 @@ Open it at **https://dbugger85.github.io/propoker/**. There's nothing to sign up
 - **Your chip set**: each colour (or your own colour) and its value, how many of each chip every player starts with, and whether your chips are enough for everyone. Chips are game points, not money.
 - **Money**: buy-ins, rebuys and add-ons, who has paid what (nobody has paid at the start), the prize pool and the prizes.
 - **At the end**: the full ranking, who sends what to whom with as few transfers as possible (for Vipps and the like), and a text to share in the group chat.
+- **All your tournaments in one place**: the main menu lists every tournament, set up, running or finished. Go back to the menu and into the game at any time, start a new one with the same setup, or delete old ones.
+- **A backup file**: export everything to one file, and import it again, for example on a new phone.
 - **Links**: share your settings and players with another organiser, or carry on with a running tournament on another phone or tablet.
 
 On a tablet held sideways, the clock fills the left half like a TV, with players, tables and money on the right.
@@ -92,6 +94,10 @@ The main menu lists every tournament you've made: ones still being set up, ones 
 
 The **⋮** button on each one has **New tournament with this setup** (a copy with the same settings and players, under a new name) and **Delete**. **New tournament** at the top starts from scratch.
 
+<p>
+  <img src="screenshots/phone-menu.png" width="240" alt="The main menu with three tournaments">
+</p>
+
 **Export everything** saves one file with all your tournaments, settings and saved names (or sends it with the share sheet). **Import** reads such a file back, for example on a new phone; tournaments you already have are replaced by the file's copy, and the rest stay.
 
 ## Carry on on another device
@@ -104,7 +110,7 @@ The **⋮** button on each one has **New tournament with this setup** (a copy wi
 It works offline once it has been opened.
 
 ## Privacy
-No ads, no tracking, no cookies, no account. There's no server: the app is a plain website on GitHub Pages, and your tournaments, settings and players are saved only in your own browser. Shared links carry their contents in the link itself, after the "#", which browsers never send to the website.
+No ads, no tracking, no cookies, no account. There's no server: the app is a plain website on GitHub Pages, and your tournaments, settings and players are saved only in your own browser. **Export everything** is the way to keep a copy: the file goes wherever you save or send it, and nowhere else. Shared links carry their contents in the link itself, after the "#", which browsers never send to the website.
 
 ## For developers
 Plain HTML, CSS and JavaScript: no framework and no build step. See [CLAUDE.md](CLAUDE.md) for how it's built and [PLAN.md](PLAN.md) for the plan and the decisions.

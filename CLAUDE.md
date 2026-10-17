@@ -8,7 +8,7 @@ The owner is a beginner: explain in plain words. Commit and push only when asked
 - `npm start` – serves the app at http://localhost:8000
 - `npm test` – unit tests for the logic (node --test), including "every text is translated"
 - `npm run e2e` – Playwright plays a whole tournament on a phone (12 players, 2 tables, drawn tables and seat swaps, a chip count at a break, rebuy, knockouts, balancing, final table, summary, a deal) plus a tablet sideways and Norwegian. Needs `/usr/bin/chromium`. Screenshots in `test/screenshots/` (gitignored); look at them after UI changes.
-- `npm run screenshots` – the README pictures (`screenshots/`), the start page's tour (`screenshots/tour/*.webp`, via `magick`) and `icons/preview.png`, from a made-up Friday evening (14 players, level 6, the time pinned to 21:12). Run it when the look changes.
+- `npm run screenshots` – the README pictures (`screenshots/`, including the main menu with two made-up filed-away evenings), the start page's tour (`screenshots/tour/*.webp`, via `magick`) and `icons/preview.png`, from a made-up Friday evening (14 players, level 6, the time pinned to 21:12). Run it when the look changes.
 
 Run `npm test` and `npm run e2e` after any change.
 

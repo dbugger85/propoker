@@ -88,6 +88,20 @@ try {
       await page.waitForTimeout(300);
       await page.screenshot({ path: out('phone-count') });
       await page.click('#count-cancel');
+      // The main menu, with two other evenings filed away
+      await page.evaluate(() => {
+        const day = 86400000;
+        const now = Date.now();
+        const names = ['Nora', 'Emil', 'Jakob', 'Ella', 'Noah', 'Sofie', 'Lukas', 'Ingrid', 'Oskar', 'Maja'];
+        const players = names.map((name, i) => ({ id: `o${i}`, name, place: i + 1 }));
+        localStorage.setItem('propoker.saved.t-last', JSON.stringify({ v: 1, id: 't-last', created: now - 7 * day, setup: { name: 'Friday poker 9 Oct', players }, game: { startedAt: now - 7 * day, finished: true, deal: null, players: [players[1], ...players.filter((p) => p.name !== 'Emil')].map((p, i) => ({ ...p, place: i + 1 })), settings: { name: 'Friday poker 9 Oct' }, levels: [], clock: { levelIndex: 0 } } }));
+        localStorage.setItem('propoker.saved.t-xmas', JSON.stringify({ v: 1, id: 't-xmas', created: now + 60 * day, setup: { name: 'Christmas poker', players: names.slice(0, 9).map((name, i) => ({ id: `x${i}`, name })) }, game: null }));
+      });
+      await page.click('#home-btn');
+      await page.waitForTimeout(300);
+      await page.screenshot({ path: out('phone-menu') });
+      await page.click('#t-list li button.open:has-text("Friday poker")');
+      await page.waitForTimeout(300);
       // The setup's chip set and payouts
       const setup = await browser.newPage({ ...phone, colorScheme: scheme });
       await setup.goto(BASE + '?lang=en');
