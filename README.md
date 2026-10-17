@@ -33,9 +33,10 @@ On a tablet held sideways, the clock fills the left half like a TV, with players
 ## How to run a tournament
 
 ### 1. Set up
-Tap **New tournament** and fill in from top to bottom. Everything is saved as you type. Names from earlier nights show up as buttons you can tap to add. Tap **Edit** next to them to remove names you don't need any more.
+Tap **New tournament** and fill in from top to bottom. Everything is saved as you type.
 
 - **Tournament**: name, currency, buy-in, starting chips, and an optional house fee per player (for food and drinks; it doesn't go into the prize pool).
+- **Players**: type a name and tap **Add**. Names from earlier nights show up as buttons you can tap to add; tap **Edit** next to them to remove names you don't need any more. The players come early because the chips check, the tournament length and the payouts all depend on how many there are.
 - **Chips**: your chip colours and what each is worth. Pick a colour from the list, or **Own colour…** for any colour. The chips sort by value (or tap **Sort by value**). Fill in **You have** to check that your chips are enough for everyone. The blinds are rounded to your smallest chip. The app suggests how many of each chip every player starts with; tap **Choose the chips** to set your own.
 - **Blinds**: pick Turbo, Standard or Deep, or tap a level to change it (big blind first; the small blind follows, and **Ante same as big blind** makes a BB ante). Minutes per level and per break apply to every level. Drag a break by its handle to put it somewhere else. **Tournament length** (1½ to 8 hours) works out the blinds for you: as many levels as fit in the time, rising in even steps until the big blind is about 1/20 of all the chips, when the game should be over. It counts the players you've added, about half of them rebuying once and most taking the add-on, and follows along when you change players, chips or minutes. Your own levels are kept under **Custom**, so you can look at a preset and come back. Antes are optional: one ante the size of the big blind (BB ante), or a small ante from every player (Classic).
 - **Rebuys and add-ons**: the price, the chips, and the last level they're allowed. The add-on is offered at the break after the last rebuy level.

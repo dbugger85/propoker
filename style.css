@@ -457,6 +457,13 @@ legend + * { clear: both; }
 .tour-row::-webkit-scrollbar { display: none; }
 .tour figure { flex: 0 0 auto; width: min(44vw, 190px); margin: 0; scroll-snap-align: start; }
 .tour img { display: block; width: 100%; height: auto; border-radius: 16px; border: 1px solid var(--glass-line); box-shadow: var(--shadow); background: var(--card); }
+.tour .dark-pic { display: none; }
+:root[data-theme="dark"] .tour .light-pic { display: none; }
+:root[data-theme="dark"] .tour .dark-pic { display: block; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .tour .light-pic { display: none; }
+  :root:not([data-theme="light"]) .tour .dark-pic { display: block; }
+}
 .tour figcaption { margin-top: 8px; font-size: 14px; font-weight: 600; text-align: center; white-space: nowrap; color: var(--muted); }
 
 /* ---------- The clock: green felt glass with white text ---------- */

@@ -93,12 +93,12 @@
       <section class="tour" aria-label="What it does" data-t-label>
         <h3 data-t>What it does</h3>
         <div class="tour-row">
-          <figure><img src="./screenshots/tour/phone-clock-light.webp" width="390" height="844" loading="lazy" alt=""><figcaption data-t>The blind clock</figcaption></figure>
-          <figure><img src="./screenshots/tour/phone-tables.webp" width="390" height="844" loading="lazy" alt=""><figcaption data-t>Tables from above</figcaption></figure>
-          <figure><img src="./screenshots/tour/phone-players.webp" width="390" height="844" loading="lazy" alt=""><figcaption data-t>Players and knockouts</figcaption></figure>
-          <figure><img src="./screenshots/tour/phone-count.webp" width="390" height="844" loading="lazy" alt=""><figcaption data-t>Chip counts</figcaption></figure>
-          <figure><img src="./screenshots/tour/phone-settle.webp" width="390" height="844" loading="lazy" alt=""><figcaption data-t>Who pays whom</figcaption></figure>
-          <figure><img src="./screenshots/tour/phone-chips.webp" width="390" height="844" loading="lazy" alt=""><figcaption data-t>Your chip set</figcaption></figure>
+          <figure><img class="light-pic" src="./screenshots/tour/clock-light.webp" width="390" height="844" loading="lazy" alt=""><img class="dark-pic" src="./screenshots/tour/clock-dark.webp" width="390" height="844" loading="lazy" alt=""><figcaption data-t>The blind clock</figcaption></figure>
+          <figure><img class="light-pic" src="./screenshots/tour/tables-light.webp" width="390" height="844" loading="lazy" alt=""><img class="dark-pic" src="./screenshots/tour/tables-dark.webp" width="390" height="844" loading="lazy" alt=""><figcaption data-t>Tables from above</figcaption></figure>
+          <figure><img class="light-pic" src="./screenshots/tour/players-light.webp" width="390" height="844" loading="lazy" alt=""><img class="dark-pic" src="./screenshots/tour/players-dark.webp" width="390" height="844" loading="lazy" alt=""><figcaption data-t>Players and knockouts</figcaption></figure>
+          <figure><img class="light-pic" src="./screenshots/tour/count-light.webp" width="390" height="844" loading="lazy" alt=""><img class="dark-pic" src="./screenshots/tour/count-dark.webp" width="390" height="844" loading="lazy" alt=""><figcaption data-t>Chip counts</figcaption></figure>
+          <figure><img class="light-pic" src="./screenshots/tour/settle-light.webp" width="390" height="844" loading="lazy" alt=""><img class="dark-pic" src="./screenshots/tour/settle-dark.webp" width="390" height="844" loading="lazy" alt=""><figcaption data-t>Who pays whom</figcaption></figure>
+          <figure><img class="light-pic" src="./screenshots/tour/chips-light.webp" width="390" height="844" loading="lazy" alt=""><img class="dark-pic" src="./screenshots/tour/chips-dark.webp" width="390" height="844" loading="lazy" alt=""><figcaption data-t>Your chip set</figcaption></figure>
         </div>
       </section>
       <div id="install-card" class="install-card" hidden>
@@ -125,6 +125,16 @@
         <label class="field inline"><span data-t>Buy-in</span><input id="s-buyin" type="text" inputmode="numeric" min="0"></label>
         <label class="field inline"><span><span data-t>Starting chips</span><span class="sub" data-t>Game points, not money</span></span><input id="s-chips" type="text" inputmode="numeric" min="1" step="100"></label>
         <label class="field inline"><span><span data-t>House fee per player</span><span class="sub" data-t>For food and drinks; kept out of the prize pool</span></span><input id="s-fee" type="text" inputmode="numeric" min="0"></label>
+      </fieldset>
+
+      <fieldset>
+        <legend><span data-t>Players</span> <span id="s-count" class="count"></span></legend>
+        <form id="add-player-form" class="row">
+          <input id="new-player-name" placeholder="Player name" data-t-placeholder autocomplete="off" enterkeyhint="done">
+          <button type="submit" class="primary" data-t>Add</button>
+        </form>
+        <div id="known-names" class="known"></div>
+        <ul id="s-players" class="list inner"></ul>
       </fieldset>
 
       <fieldset>
@@ -177,16 +187,6 @@
         <label class="field inline"><span data-t>Seats per table</span><input id="s-seats" type="text" inputmode="numeric" min="2" max="12"></label>
         <div class="choices"><label><input id="s-random" type="checkbox"><span data-t>Draw seats at random</span></label></div>
         <p id="s-tables-note" class="note"></p>
-      </fieldset>
-
-      <fieldset>
-        <legend><span data-t>Players</span> <span id="s-count" class="count"></span></legend>
-        <form id="add-player-form" class="row">
-          <input id="new-player-name" placeholder="Player name" data-t-placeholder autocomplete="off" enterkeyhint="done">
-          <button type="submit" class="primary" data-t>Add</button>
-        </form>
-        <div id="known-names" class="known"></div>
-        <ul id="s-players" class="list inner"></ul>
       </fieldset>
 
       <fieldset>

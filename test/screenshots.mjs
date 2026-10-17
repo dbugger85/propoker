@@ -4,6 +4,7 @@
 // three knocked out, a few rebuys and add-ons. Phone (390×844) light and dark,
 // and an iPad sideways (1180×820). Small WebP copies for the start page's tour go in screenshots/tour/.
 import { spawn, execFileSync } from 'node:child_process';
+import { unlinkSync } from 'node:fs';
 import { chromium } from 'playwright-core';
 
 const ROOT = new URL('..', import.meta.url).pathname;
@@ -12,6 +13,15 @@ const server = spawn('python3', ['-m', 'http.server', '8776', '--bind', '127.0.0
 await new Promise((r) => setTimeout(r, 800));
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM || '/usr/bin/chromium' });
 const out = (name) => `${ROOT}screenshots/${name}.png`;
+
+// A picture for the README (`readme`, a name or null) and/or a small WebP for the start page's tour
+// (`tour`: screenshots/tour/<tour>-<scheme>.webp, one for each theme).
+async function snap(page, scheme, readme, tour) {
+  const png = readme ? out(readme) : `${ROOT}screenshots/tour/tmp.png`;
+  await page.screenshot({ path: png });
+  if (tour) execFileSync('magick', [png, '-quality', '72', `${ROOT}screenshots/tour/${tour}-${scheme}.webp`]);
+  if (!readme) unlinkSync(png);
+}
 
 const NAMES = ['Nora', 'Emil', 'Jakob', 'Ella', 'Noah', 'Sofie', 'Lukas', 'Ingrid', 'Oskar', 'Maja', 'Henrik', 'Thea', 'Filip', 'Sara'];
 const phone = { viewport: { width: 390, height: 844 }, deviceScaleFactor: 1 };
@@ -70,24 +80,25 @@ const toPage = async (page, i) => {
 
 try {
   for (const scheme of ['light', 'dark']) {
+    const light = scheme === 'light';
     const page = await scene(scheme);
-    await page.screenshot({ path: out(`phone-clock-${scheme}`) });
-    if (scheme === 'light') {
-      await toPage(page, 1);
-      await page.screenshot({ path: out('phone-players') });
-      await toPage(page, 2);
-      await page.screenshot({ path: out('phone-tables') });
-      await toPage(page, 3);
-      await page.screenshot({ path: out('phone-money') });
-      // The cog: the coming levels with their clock times, and the chip count
-      await page.click('#settings-btn');
-      await page.$eval('#g-levels', (e) => e.scrollIntoView({ block: 'start' }));
-      await page.waitForTimeout(300);
-      await page.screenshot({ path: out('phone-levels') });
-      await page.click('#g-count');
-      await page.waitForTimeout(300);
-      await page.screenshot({ path: out('phone-count') });
-      await page.click('#count-cancel');
+    await snap(page, scheme, `phone-clock-${scheme}`, 'clock');
+    await toPage(page, 1);
+    await snap(page, scheme, light && 'phone-players', 'players');
+    await toPage(page, 2);
+    await snap(page, scheme, light && 'phone-tables', 'tables');
+    await toPage(page, 3);
+    if (light) await page.screenshot({ path: out('phone-money') });
+    // The cog: the coming levels with their clock times, and the chip count
+    await page.click('#settings-btn');
+    await page.$eval('#g-levels', (e) => e.scrollIntoView({ block: 'start' }));
+    await page.waitForTimeout(300);
+    if (light) await page.screenshot({ path: out('phone-levels') });
+    await page.click('#g-count');
+    await page.waitForTimeout(300);
+    await snap(page, scheme, light && 'phone-count', 'count');
+    await page.click('#count-cancel');
+    if (light) {
       // The main menu, with two other evenings filed away
       await page.evaluate(() => {
         const day = 86400000;
@@ -102,6 +113,8 @@ try {
       await page.screenshot({ path: out('phone-menu') });
       await page.click('#t-list li button.open:has-text("Friday poker")');
       await page.waitForTimeout(300);
+    }
+    {
       // The setup's chip set and payouts
       const setup = await browser.newPage({ ...phone, colorScheme: scheme });
       await setup.goto(BASE + '?lang=en');
@@ -117,36 +130,39 @@ try {
       await setup.click('#t-list li button.open');
       await setup.$eval('#s-chipset', (e) => e.closest('fieldset').scrollIntoView());
       await setup.evaluate(() => window.scrollBy(0, -12));
-      await setup.screenshot({ path: out('phone-chips') });
+      await snap(setup, scheme, light && 'phone-chips', 'chips');
       await setup.close();
     }
     await page.close();
   }
 
   // The end of the night
-  const end = await scene('light');
-  await end.evaluate(() => {
-    const t = JSON.parse(localStorage.getItem('propoker.tournament'));
-    const left = t.players.filter((p) => p.status === 'in');
-    const order = ['Lukas', 'Thea', 'Filip', 'Ingrid', 'Maja', 'Noah', 'Sofie', 'Ella', 'Jakob']; // Nora and Emil are left
-    const now = Date.now();
-    order.forEach((name, i) => Object.assign(left.find((p) => p.name === name), { status: 'out', outBy: left.find((p) => p.name === 'Nora').id, outLevel: 7 + Math.floor(i / 2), outAt: now - (10 - i) * 60000 }));
-    localStorage.setItem('propoker.tournament', JSON.stringify(t));
-  });
-  await end.reload();
-  await end.waitForTimeout(300);
-  // Knock out the last one through the app, so the summary is made the normal way
-  await end.click('#page-dots button[data-page="1"]');
-  await end.waitForTimeout(600);
-  await end.click('#in-list li button:has-text("Emil")');
-  await end.click('#action-buttons button:has-text("Knocked out")');
-  await end.waitForTimeout(300);
-  await end.waitForSelector('#screen-summary:not([hidden])');
-  await end.screenshot({ path: out('phone-summary') });
-  await end.$eval('#sum-moves', (e) => e.parentElement.querySelector('h3:nth-of-type(1)') && e.scrollIntoView({ block: 'center' }));
-  await end.waitForTimeout(300);
-  await end.screenshot({ path: out('phone-settle') });
-  await end.close();
+  for (const scheme of ['light', 'dark']) {
+    const light = scheme === 'light';
+    const end = await scene(scheme);
+    await end.evaluate(() => {
+      const t = JSON.parse(localStorage.getItem('propoker.tournament'));
+      const left = t.players.filter((p) => p.status === 'in');
+      const order = ['Lukas', 'Thea', 'Filip', 'Ingrid', 'Maja', 'Noah', 'Sofie', 'Ella', 'Jakob']; // Nora and Emil are left
+      const now = Date.now();
+      order.forEach((name, i) => Object.assign(left.find((p) => p.name === name), { status: 'out', outBy: left.find((p) => p.name === 'Nora').id, outLevel: 7 + Math.floor(i / 2), outAt: now - (10 - i) * 60000 }));
+      localStorage.setItem('propoker.tournament', JSON.stringify(t));
+    });
+    await end.reload();
+    await end.waitForTimeout(300);
+    // Knock out the last one through the app, so the summary is made the normal way
+    await end.click('#page-dots button[data-page="1"]');
+    await end.waitForTimeout(600);
+    await end.click('#in-list li button:has-text("Emil")');
+    await end.click('#action-buttons button:has-text("Knocked out")');
+    await end.waitForTimeout(300);
+    await end.waitForSelector('#screen-summary:not([hidden])');
+    if (light) await end.screenshot({ path: out('phone-summary') });
+    await end.$eval('#sum-moves', (e) => e.parentElement.querySelector('h3:nth-of-type(1)') && e.scrollIntoView({ block: 'center' }));
+    await end.waitForTimeout(300);
+    await snap(end, scheme, light && 'phone-settle', 'settle');
+    await end.close();
+  }
 
   // iPad sideways
   for (const scheme of ['light', 'dark']) {
@@ -166,9 +182,5 @@ try {
 } finally {
   await browser.close();
   server.kill();
-}
-// Small copies for the tour on the start page
-for (const name of ['phone-clock-light', 'phone-tables', 'phone-players', 'phone-count', 'phone-settle', 'phone-chips']) {
-  execFileSync('magick', [out(name), '-quality', '72', `${ROOT}screenshots/tour/${name}.webp`]);
 }
 console.log('screenshots done');
