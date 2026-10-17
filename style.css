@@ -877,9 +877,36 @@ img.plate { padding: 4px 8px; border-radius: 10px; background: #ffffff; }
 .look-link button.link { min-height: 44px; }
 .look-preview { display: grid; place-items: center; min-height: 96px; margin: 12px 0; padding: 12px; border-radius: 14px; background: var(--well); border: 1px solid var(--well-line); }
 .look-preview img { max-height: 80px; max-width: 100%; object-fit: contain; }
-.swatches { display: flex; flex-wrap: wrap; gap: 10px; }
-button.swatch { width: 44px; height: 44px; min-height: 44px; padding: 0; border-radius: 50%; border: 2px solid var(--glass-line); box-shadow: none; font-size: 22px; font-weight: 700; color: var(--muted); }
-button.swatch[aria-pressed="true"] { outline: 3px solid var(--text); outline-offset: 2px; }
+/* The accent swatches, like ProQuiz: gradient discs, a ring round the chosen one */
+.accent-name { font-weight: 400; }
+.accent-swatches { display: flex; flex-wrap: wrap; gap: 6px; }
+.accent { position: relative; width: 48px; height: 48px; cursor: pointer; }
+.accent input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
+.accent span { position: absolute; inset: 5px; border-radius: 50%; background: linear-gradient(135deg, var(--a) 35%, var(--b)); box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.35), 0 2px 8px rgb(0 0 0 / 0.3); pointer-events: none; transition: transform 120ms; }
+.accent:hover span { transform: scale(1.08); }
+.accent input:checked + span, .accent.custom.on span { box-shadow: 0 0 0 3px var(--bg), 0 0 0 5px var(--text); }
+.accent input:focus-visible + span, button.accent:focus-visible span { outline: 3px solid var(--green); outline-offset: 4px; }
+/* Your own colour: a colour wheel until one is chosen, then that colour */
+.accent.custom span { background: conic-gradient(from 90deg, #ff4d4d, #ffd23f, #2ee59d, #38c8ff, #6f55ff, #ff5fa2, #ff4d4d); }
+.accent.custom.on span { background: var(--a); }
+button.accent { min-height: 0; padding: 0; border: 0; background: none !important; box-shadow: none !important; }
+
+/* The colour box: a big swatch, the colour code, and sliders whose tracks show the colours */
+.colour-box { display: flex; flex-direction: column; gap: 6px; }
+.colour-top { display: flex; align-items: center; gap: 14px; margin-bottom: 6px; }
+.colour-swatch { flex: none; width: 64px; height: 64px; border-radius: 50%; box-shadow: 0 0 0 3px var(--bg), 0 0 0 5px var(--glass-edge), 0 8px 24px rgb(0 0 0 / 0.3); }
+.colour-hex { flex: 1; min-width: 0; font: 700 22px/1 "Barlow Condensed", system-ui, sans-serif; letter-spacing: 0.04em; text-transform: uppercase; }
+.colour-row { display: flex; flex-direction: column; gap: 2px; font-size: 14px; font-weight: 600; color: var(--muted); }
+.colour-range { -webkit-appearance: none; appearance: none; width: 100%; height: 48px; margin: 0; padding: 0; border: 0; background: transparent !important; box-shadow: none !important; cursor: pointer; }
+.colour-range.hue { --track: linear-gradient(to right, hsl(0 var(--s) var(--l)), hsl(60 var(--s) var(--l)), hsl(120 var(--s) var(--l)), hsl(180 var(--s) var(--l)), hsl(240 var(--s) var(--l)), hsl(300 var(--s) var(--l)), hsl(360 var(--s) var(--l))); }
+.colour-range.sat { --track: linear-gradient(to right, hsl(var(--h) 0% var(--l)), hsl(var(--h) 100% var(--l))); }
+.colour-range.light { --track: linear-gradient(to right, hsl(var(--h) var(--s) 10%), hsl(var(--h) var(--s) 50%), hsl(var(--h) var(--s) 90%)); }
+.colour-range::-webkit-slider-runnable-track { height: 22px; border-radius: 999px; background: var(--track); box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.12); }
+.colour-range::-moz-range-track { height: 22px; border-radius: 999px; background: var(--track); box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.12); }
+.colour-range::-webkit-slider-thumb { -webkit-appearance: none; width: 30px; height: 30px; margin-top: -4px; border-radius: 50%; background: #ffffff; border: 0; box-shadow: 0 2px 8px rgb(0 0 0 / 0.45), inset 0 0 0 2px rgb(0 0 0 / 0.08); }
+.colour-range::-moz-range-thumb { width: 30px; height: 30px; border-radius: 50%; background: #ffffff; border: 0; box-shadow: 0 2px 8px rgb(0 0 0 / 0.45); }
+.colour-range:focus-visible { outline: none; }
+.colour-range:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 3px var(--green), 0 2px 8px rgb(0 0 0 / 0.45); }
 .seg.five { grid-template-columns: repeat(5, minmax(0, 1fr)); }
 
 /* ---------- The TV view (?tv): sized by the screen, readable across the room ---------- */

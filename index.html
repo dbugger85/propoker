@@ -540,8 +540,8 @@
       </div>
       <div class="choices"><label><input id="look-plate" type="checkbox"><span><span data-t>White backing behind the logo</span><span class="sub" data-t>For a dark logo on the dark screens</span></span></label></div>
       <label class="field"><span data-t>Name on the TV</span><input id="look-name" autocomplete="off" maxlength="60" enterkeyhint="done" placeholder="For example Friday Poker Club" data-t-placeholder></label>
-      <div class="style-label" data-t>Accent colour</div>
-      <div id="look-accents" class="swatches"></div>
+      <div class="style-label"><span data-t>Accent colour</span> <span id="look-accent-name" class="accent-name"></span></div>
+      <div id="look-accents" class="accent-swatches" role="radiogroup" aria-label="Accent colour" data-t-label></div>
       <p id="look-error" class="error"></p>
     </div>
     <div class="row dialog-buttons">
@@ -549,7 +549,26 @@
     </div>
   </dialog>
   <input id="look-file" type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" hidden>
-  <input id="look-color" class="color-input" type="color" tabindex="-1" aria-hidden="true">
+
+  <!-- Your own colour (like ProQuiz's colour box, not the browser's picker, which can open outside the window) -->
+  <dialog id="colour-dialog">
+    <div class="dialog-body">
+      <h2 data-t>Your own colour</h2>
+      <div id="colour-box" class="colour-box">
+        <div class="colour-top">
+          <span id="colour-swatch" class="colour-swatch" aria-hidden="true"></span>
+          <input id="colour-hex" class="colour-hex" maxlength="7" spellcheck="false" autocomplete="off" aria-label="Colour code" data-t-label>
+        </div>
+        <label class="colour-row"><span data-t>Colour tone</span><input id="colour-hue" class="colour-range hue" type="range" min="0" max="360" step="1"></label>
+        <label class="colour-row"><span data-t>Strength</span><input id="colour-sat" class="colour-range sat" type="range" min="0" max="100" step="1"></label>
+        <label class="colour-row"><span data-t>Brightness</span><input id="colour-light" class="colour-range light" type="range" min="10" max="90" step="1"></label>
+      </div>
+    </div>
+    <div class="row dialog-buttons">
+      <button id="colour-cancel" type="button" class="grow" data-t>Cancel</button>
+      <button id="colour-ok" type="button" class="primary grow" data-t>Use colour</button>
+    </div>
+  </dialog>
 
   <input id="color-input" class="color-input" type="color" tabindex="-1" aria-hidden="true">
 

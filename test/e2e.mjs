@@ -642,7 +642,22 @@ try {
   await admin.click('#look-btn');
   await admin.setInputFiles('#look-file', `${root}icons/icon-192.png`);
   await admin.fill('#look-name', 'Poker Club');
-  await admin.click('#look-accents .swatch >> nth=1');
+  // Your own colour in the colour box: Cancel puts the old one back, Use colour keeps it
+  const savedAccent = () => admin.evaluate(() => JSON.parse(localStorage.getItem('propoker.brand')).accent);
+  await admin.click('#look-accents button.accent.custom');
+  await admin.fill('#colour-hex', '#123456');
+  await admin.waitForTimeout(300);
+  await admin.screenshot({ path: `${shots}/15-colour.png` });
+  await admin.click('#colour-cancel');
+  assert.equal(await savedAccent(), null);
+  await admin.click('#look-accents button.accent.custom');
+  await admin.fill('#colour-hex', '#123456');
+  await admin.click('#colour-ok');
+  assert.equal(await savedAccent(), '#123456');
+  assert.match(await admin.textContent('#look-accent-name'), /Your own/);
+  await admin.click('#look-accents .accent >> nth=1'); // Blue
+  assert.equal(await savedAccent(), '#2563eb');
+  assert.match(await admin.textContent('#look-accent-name'), /Blue/);
   await admin.waitForTimeout(300);
   await admin.screenshot({ path: `${shots}/15-look.png` });
   await admin.click('#look-done');

@@ -12,7 +12,7 @@ import { CHIP_COLORS, makeStack, enoughFor, colourUp, smallestChip, sortChips, c
 import { lang, LANGS, FLAGS, tr, setLang, translatePage } from './i18n.js';
 import { pickSettings, encodeSettings, decodeSettings, applySettings, encodeTournament, decodeTournament } from './share.js';
 import { unlockAudio, alert, keepScreenOn, releaseScreen } from './alerts.js';
-import { ACCENTS, accentCss } from './brand.js';
+import { ACCENTS, accentCss, accentOf, hexToHsl, hslToHex } from './brand.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -2413,11 +2413,67 @@ function renderLook() {
   $('look-preview').replaceChildren(brand.logo ? el('img', { src: brand.logo, alt: '', class: brand.plate ? 'plate' : '' }) : el('span', { class: 'muted' }, tr('No logo yet')));
   $('look-remove').disabled = !brand.logo;
   $('look-plate').checked = brand.plate;
-  const own = brand.accent && !ACCENTS.includes(brand.accent) ? brand.accent : null;
+  // The accent colours, like ProQuiz: ProPoker's green, a few others, and one of your own
+  const chosen = accentOf(brand.accent);
+  $('look-accent-name').textContent = `· ${chosen === 'custom' ? tr('Your own') : tr(ACCENTS.find((a) => a.id === chosen).name)}`;
   $('look-accents').replaceChildren(
-    ...[null, ...ACCENTS].map((c) => el('button', { type: 'button', class: 'swatch', style: `background: ${c ?? '#1a6b45'}`, 'aria-pressed': String(brand.accent === c), 'aria-label': c ? tr('Colour {c}', { c }) : tr('ProPoker green'), onclick: () => setBrand({ accent: c }) })),
-    el('button', { type: 'button', class: 'swatch own', style: own ? `background: ${own}` : '', 'aria-pressed': String(!!own), 'aria-label': tr('Your own colour'), onclick: () => { $('look-color').value = brand.accent ?? '#1a6b45'; $('look-color').click(); } }, own ? '' : '+'),
+    ...ACCENTS.map((a) =>
+      el('label', { class: 'accent', title: tr(a.name), style: `--a: ${a.color ?? a.swatch}; --b: ${a.flare}` }, [
+        el('input', { type: 'radio', name: 'look-accent', checked: chosen === a.id, 'aria-label': tr(a.name), onchange: () => setBrand({ accent: a.color }) }),
+        el('span', {}),
+      ]),
+    ),
+    el('button', { type: 'button', class: `accent custom${chosen === 'custom' ? ' on' : ''}`, title: tr('Your own colour'), 'aria-label': tr('Your own colour'), style: chosen === 'custom' ? `--a: ${brand.accent}` : '', onclick: chooseOwnColour }, el('span', {})),
   );
+}
+
+// Your own colour: the whole app changes as the sliders move; Cancel puts the old one back.
+function chooseOwnColour() {
+  const dlg = $('colour-dialog');
+  const before = brand.accent;
+  let { h, s, l } = hexToHsl(before ?? '#1a6b45');
+  let typed = null; // a colour code typed in is kept exactly
+  const current = () => typed ?? hslToHex(h, s, Math.max(10, Math.min(90, l)));
+  const preview = () => ($('brand-style').textContent = accentCss(current()));
+  const update = (from) => {
+    const c = current();
+    $('colour-swatch').style.background = c;
+    const box = $('colour-box').style;
+    box.setProperty('--h', String(h));
+    box.setProperty('--s', `${s}%`);
+    box.setProperty('--l', `${l}%`);
+    if (from !== 'hex') $('colour-hex').value = c.toUpperCase();
+    if (from !== 'hue') $('colour-hue').value = String(h);
+    if (from !== 'sat') $('colour-sat').value = String(s);
+    if (from !== 'light') $('colour-light').value = String(l);
+    preview();
+  };
+  for (const [id, set] of [['hue', (v) => (h = v)], ['sat', (v) => (s = v)], ['light', (v) => (l = v)]]) {
+    $(`colour-${id}`).oninput = () => {
+      set(Number($(`colour-${id}`).value));
+      typed = null;
+      update(id);
+    };
+  }
+  $('colour-hex').oninput = () => {
+    const m = /^#?([0-9a-f]{6})$/i.exec($('colour-hex').value.trim());
+    if (!m) return;
+    typed = `#${m[1].toLowerCase()}`;
+    ({ h, s, l } = hexToHsl(typed));
+    update('hex');
+  };
+  const done = (use) => {
+    dlg.onclose = null;
+    dlg.close();
+    if (use) setBrand({ accent: current() });
+    else applyBrand(); // back to the colour before
+    if (!$('look-dialog').open) $('look-dialog').showModal();
+  };
+  $('colour-ok').onclick = () => done(true);
+  $('colour-cancel').onclick = () => done(false);
+  dlg.onclose = () => done(false);
+  update(null);
+  dlg.showModal();
 }
 
 $('look-btn').addEventListener('click', openLook);
@@ -2429,7 +2485,6 @@ $('look-name').addEventListener('input', () => {
   brand = loadBrand();
   if (TV_MODE) renderTvBrand();
 });
-$('look-color').addEventListener('input', () => setBrand({ accent: $('look-color').value }));
 $('look-file-btn').addEventListener('click', () => $('look-file').click());
 $('look-file').addEventListener('change', async () => {
   const file = $('look-file').files[0];

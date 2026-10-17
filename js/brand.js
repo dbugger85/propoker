@@ -3,7 +3,28 @@
 // re-hued to it, for the light and the dark look. Gold (money) and red stay.
 // No DOM code here; app.js puts the CSS in a <style>.
 
-export const ACCENTS = ['#2563eb', '#7c3aed', '#0d9488', '#ea580c', '#dc2626'];
+// The swatches, like ProQuiz's: each a gradient from the colour to its `flare`. Green (null) is ProPoker's own.
+export const ACCENTS = [
+  { id: 'green', name: 'Green', color: null, swatch: '#1a6b45', flare: '#8fd16a' },
+  { id: 'blue', name: 'Blue', color: '#2563eb', flare: '#2fd0ff' },
+  { id: 'violet', name: 'Violet', color: '#7c3aed', flare: '#ff5fa2' },
+  { id: 'teal', name: 'Teal', color: '#0d9488', flare: '#6fe3c8' },
+  { id: 'orange', name: 'Orange', color: '#ea580c', flare: '#ffc23d' },
+  { id: 'red', name: 'Red', color: '#dc2626', flare: '#ff7a59' },
+];
+
+// Which swatch a saved accent is: one of ACCENTS, or 'custom'
+export const accentOf = (hex) => ACCENTS.find((a) => a.color === (hex ?? null))?.id ?? 'custom';
+
+// Hue 0–360, saturation and lightness 0–100 → '#rrggbb'
+export function hslToHex(h, s, l) {
+  s /= 100;
+  l /= 100;
+  const k = (n) => (n + h / 30) % 12;
+  const a = s * Math.min(l, 1 - l);
+  const f = (n) => Math.round(255 * (l - a * Math.max(-1, Math.min(k(n) - 3, 9 - k(n), 1))));
+  return `#${[f(0), f(8), f(4)].map((v) => v.toString(16).padStart(2, '0')).join('')}`;
+}
 
 export function hexToHsl(hex) {
   const n = parseInt(hex.slice(1), 16);

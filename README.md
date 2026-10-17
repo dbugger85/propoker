@@ -123,7 +123,7 @@ Everything you do on your screen (knockouts, rebuys, pausing, a new level) shows
 
 - **Logo**: **Choose a logo** and pick a picture (PNG, JPG, WebP or SVG, up to 2 MB). It replaces the ProPoker name at the top of the app and shows big on the TV. **White backing behind the logo** helps a dark logo on the dark screens. **Remove logo** brings back ProPoker.
 - **Name on the TV**: for example "Friday Poker Club", shown over the clock on the TV (otherwise the tournament's name).
-- **Accent colour**: ProPoker green, blue, violet, teal, orange or red, or **+** for a colour of your own. It colours the whole app in both light and dark mode: the background, the buttons, the highlights, the big clock and the tables. Gold (money) and red stay as they are.
+- **Accent colour**: ProPoker green, blue, violet, teal, orange or red, or the colour wheel for a colour of your own: slide the colour tone, strength and brightness (or type a colour code like #1A6B45) and watch the app change, then **Use colour**. It colours the whole app in both light and dark mode: the background, the buttons, the highlights, the big clock and the tables. Gold (money) and red stay as they are.
 
 It's kept on this device for every tournament, and it comes along in **Export everything**.
 

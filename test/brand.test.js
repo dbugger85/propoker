@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { hexToHsl, accentVars, accentCss } from '../js/brand.js';
+import { hexToHsl, hslToHex, accentVars, accentCss, accentOf } from '../js/brand.js';
 import { cleanBrand } from '../js/storage.js';
 
 test('hex to hsl', () => {
@@ -24,4 +24,17 @@ test('the saved look is checked', () => {
   assert.deepEqual(cleanBrand({ name: 'x'.repeat(80), accent: '#ABCDEF', logo: 'javascript:alert(1)', plate: 1 }), { v: 1, name: 'x'.repeat(60), accent: '#abcdef', logo: null, plate: true });
   assert.equal(cleanBrand({ logo: 'data:image/png;base64,AAAA' }).logo, 'data:image/png;base64,AAAA');
   assert.equal(cleanBrand(null).accent, null);
+});
+
+test('own colours: hsl back to hex, and which swatch is chosen', () => {
+  assert.equal(hslToHex(0, 100, 50), '#ff0000');
+  assert.equal(hslToHex(221, 83, 53), '#2463eb', 'close to #2563eb');
+  for (const hex of ['#1a6b45', '#7c3aed', '#ffffff', '#000000']) {
+    const { h, s, l } = hexToHsl(hex);
+    const back = hexToHsl(hslToHex(h, s, l));
+    assert.ok(Math.abs(back.h - h) <= 2 && Math.abs(back.l - l) <= 1, hex);
+  }
+  assert.equal(accentOf(null), 'green');
+  assert.equal(accentOf('#2563eb'), 'blue');
+  assert.equal(accentOf('#123456'), 'custom');
 });
