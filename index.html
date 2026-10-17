@@ -59,6 +59,7 @@
     <div class="brand">
       <img class="logo" src="./icons/icon.svg" alt="">
       <h1>ProPoker</h1>
+      <img id="brand-logo" class="brand-logo" alt="" hidden>
     </div>
     <div class="top-actions">
       <button id="home-btn" type="button" class="icon home" aria-label="Main menu" data-t-label hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V20a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V9.5"/></svg></button>
@@ -82,6 +83,7 @@
         <button id="import-btn" type="button" class="link" data-t>Import</button>
       </div>
       <input id="import-file" type="file" accept=".json,application/json" hidden>
+      <p class="look-link"><button id="look-btn" type="button" class="link" data-t>Your logo and colours</button></p>
       <p class="intro" data-t>ProPoker runs your poker tournament from one phone or tablet: a big blind clock with sounds, players and knockouts, rebuys and add-ons, seating and table balancing on tables drawn from above, chip counts at the breaks, who has paid, the prize pool and payouts, and at the end who sends what to whom.</p>
       <ul class="promise" aria-label="About ProPoker" data-t-label>
         <li data-t>100% free</li>
@@ -274,6 +276,39 @@
       </div>
     </section>
 
+    <!-- The TV view: a second window (?tv) on the TV, following the main window -->
+    <section id="screen-tv" class="screen tv" hidden>
+      <div class="tv-main">
+        <div id="tv-clock" class="clock tv-clock">
+          <div id="tv-brand" class="tv-brand"></div>
+          <div id="tv-level" class="c-level"></div>
+          <div id="tv-count" class="countdown"></div>
+          <div class="progress"><div id="tv-progress"></div></div>
+          <div id="tv-blinds" class="c-blinds"></div>
+          <div id="tv-ante" class="c-ante"></div>
+          <div id="tv-next" class="c-next"></div>
+        </div>
+        <div id="tv-facts" class="facts tv-facts"></div>
+        <div id="tv-chips" class="chip-legend tv-chips"></div>
+        <p id="tv-status" class="status tv-status"></p>
+      </div>
+      <div id="tv-side" class="tv-side">
+        <h2 id="tv-panel-title" class="tv-panel-title"></h2>
+        <div id="tv-panel" class="tv-panel"></div>
+        <div id="tv-dots" class="tv-dots"></div>
+      </div>
+      <div id="tv-start" class="tv-start">
+        <div class="tv-start-box">
+          <button id="tv-go" type="button" class="primary big" data-t>Start the TV view</button>
+          <p class="muted" data-t>Full screen, with sounds. Move the mouse to see the buttons again</p>
+        </div>
+      </div>
+      <div class="tv-corner">
+        <button id="tv-settings-btn" type="button" data-t>What to show</button>
+        <button id="tv-full" type="button" data-t>Full screen</button>
+      </div>
+    </section>
+
     <!-- The end -->
     <section id="screen-summary" class="screen" hidden>
       <h2 id="sum-title"></h2>
@@ -420,6 +455,7 @@
         <button id="g-add-level" type="button" class="grow" data-t>Add level</button>
         <button id="g-add-break" type="button" class="grow" data-t>Add break</button>
       </div>
+      <button id="g-tv" type="button" class="big" data-t>TV view</button>
       <button id="g-count" type="button" class="big" data-t>Count chips</button>
       <button id="g-handover" type="button" class="big" data-t>Continue on another device</button>
       <button id="g-end" type="button" class="danger" data-t>End tournament</button>
@@ -468,6 +504,53 @@
   </dialog>
 
   <!-- The phone's colour picker, for a chip in your own colour (opened from the colour list) -->
+  <!-- What the TV view shows -->
+  <dialog id="tv-dialog" class="scrolling">
+    <div class="dialog-body">
+      <h2 data-t>TV view</h2>
+      <p id="tv-how" class="muted small" data-t>Opens a second window. Drag it to the TV (set the TV to extend the screen, not mirror it) and make it full screen. It follows everything you do here</p>
+      <h3 data-t>Next to the clock</h3>
+      <div id="tv-panels" class="choices"></div>
+      <div class="style-label" data-t>Change every</div>
+      <div id="tv-cycle" class="seg five"></div>
+      <h3 data-t>Under the clock</h3>
+      <div class="choices">
+        <label><input id="tv-facts-on" type="checkbox"><span data-t>Players, stacks, prize pool and next break</span></label>
+        <label><input id="tv-chips-on" type="checkbox"><span data-t>Chip values</span></label>
+      </div>
+      <div class="style-label" data-t>Sounds</div>
+      <div id="tv-sound" class="seg two"></div>
+      <button id="tv-look" type="button" class="link edit-link" data-t>Your logo and colours</button>
+    </div>
+    <div class="row dialog-buttons">
+      <button id="tv-done" type="button" class="grow" data-t>Done</button>
+      <button id="tv-open" type="button" class="primary grow" data-t>Open TV view</button>
+    </div>
+  </dialog>
+
+  <!-- Your own logo, name and colour -->
+  <dialog id="look-dialog" class="scrolling">
+    <div class="dialog-body">
+      <h2 data-t>Your logo and colours</h2>
+      <p class="muted small" data-t>Shown at the top of the app and big on the TV. Kept on this device, for every tournament</p>
+      <div id="look-preview" class="look-preview"></div>
+      <div class="row">
+        <button id="look-file-btn" type="button" class="grow" data-t>Choose a logo</button>
+        <button id="look-remove" type="button" class="grow" data-t>Remove logo</button>
+      </div>
+      <div class="choices"><label><input id="look-plate" type="checkbox"><span><span data-t>White backing behind the logo</span><span class="sub" data-t>For a dark logo on the dark screens</span></span></label></div>
+      <label class="field"><span data-t>Name on the TV</span><input id="look-name" autocomplete="off" maxlength="60" enterkeyhint="done" placeholder="For example Friday Poker Club" data-t-placeholder></label>
+      <div class="style-label" data-t>Accent colour</div>
+      <div id="look-accents" class="swatches"></div>
+      <p id="look-error" class="error"></p>
+    </div>
+    <div class="row dialog-buttons">
+      <button id="look-done" type="button" class="primary grow" data-t>Done</button>
+    </div>
+  </dialog>
+  <input id="look-file" type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" hidden>
+  <input id="look-color" class="color-input" type="color" tabindex="-1" aria-hidden="true">
+
   <input id="color-input" class="color-input" type="color" tabindex="-1" aria-hidden="true">
 
   <div id="toast" class="toast" role="status" hidden><span id="toast-text"></span><button id="toast-action" type="button" hidden></button></div>

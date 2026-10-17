@@ -213,3 +213,44 @@ export function saveDealer(on) {
     else localStorage.setItem(DEALER_KEY, '0');
   } catch {}
 }
+
+// ---------- the TV view and your own look ----------
+
+// What the TV window shows (kept on this device, shared with the TV window)
+export const TV_KEY = 'propoker.tv';
+export const TV_PANELS = ['blinds', 'prizes', 'players', 'tables', 'out'];
+export const TV_DEFAULT = { v: 1, panels: ['blinds', 'prizes', 'players'], cycle: 15, facts: true, chips: true, sound: 'tv' };
+export function loadTv() {
+  const s = { ...TV_DEFAULT, ...read(TV_KEY) };
+  s.panels = (Array.isArray(s.panels) ? s.panels : TV_DEFAULT.panels).filter((p) => TV_PANELS.includes(p));
+  return s;
+}
+export const saveTv = (s) => write(TV_KEY, { ...s, v: 1 });
+
+// The TV window says it's there every few seconds, so the main window leaves the sounds to it.
+const TV_SEEN_KEY = 'propoker.tvSeen';
+export function markTvSeen(time) {
+  try {
+    localStorage.setItem(TV_SEEN_KEY, String(time));
+  } catch {}
+}
+export function tvOpen(now) {
+  try {
+    return now - (Number(localStorage.getItem(TV_SEEN_KEY)) || 0) < 10000;
+  } catch {
+    return false;
+  }
+}
+
+// Your own logo, name and accent colour (like ProQuiz): { name, accent: '#rrggbb' | null, logo: data URL | null, plate }
+export const BRAND_KEY = 'propoker.brand';
+export const NO_BRAND = { v: 1, name: '', accent: null, logo: null, plate: false };
+export const cleanBrand = (b) => ({
+  v: 1,
+  name: typeof b?.name === 'string' ? b.name.slice(0, 60) : '',
+  accent: /^#[0-9a-f]{6}$/i.test(b?.accent ?? '') ? b.accent.toLowerCase() : null,
+  logo: typeof b?.logo === 'string' && /^data:image\/(png|jpeg|webp|svg\+xml);base64,/.test(b.logo) ? b.logo : null,
+  plate: !!b?.plate,
+});
+export const loadBrand = () => cleanBrand(read(BRAND_KEY) ?? NO_BRAND);
+export const saveBrand = (b) => write(BRAND_KEY, cleanBrand(b));

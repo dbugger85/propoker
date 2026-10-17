@@ -1,7 +1,7 @@
 // Screens, buttons and popups. The rules live in blinds.js, clock.js,
 // tables.js, money.js and tournament.js (no DOM code there).
 
-import { DEFAULT_SETUP, loadSetup, saveSetup, loadGame, saveGame, currentInfo, worthKeeping, savedTournaments, saveSaved, deleteSaved, switchTo, clearCurrent, loadSeen, saveSeen, loadTheme, saveTheme, loadInstallHidden, saveInstallHidden, loadTableView, saveTableView, loadDealer, saveDealer } from './storage.js';
+import { DEFAULT_SETUP, loadSetup, saveSetup, loadGame, saveGame, currentInfo, worthKeeping, savedTournaments, saveSaved, deleteSaved, switchTo, clearCurrent, TV_KEY, TV_PANELS, loadTv, saveTv, markTvSeen, tvOpen, BRAND_KEY, loadBrand, saveBrand, cleanBrand, loadSeen, saveSeen, loadTheme, saveTheme, loadInstallHidden, saveInstallHidden, loadTableView, saveTableView, loadDealer, saveDealer } from './storage.js';
 import { PRESETS, PRESET_ORDER, buildLevels, anteFor, levelNumber, nextPlay, nextLevel, totalMinutes, playLevel } from './blinds.js';
 import * as C from './clock.js';
 import * as T from './tournament.js';
@@ -12,9 +12,14 @@ import { CHIP_COLORS, makeStack, enoughFor, colourUp, smallestChip, sortChips, c
 import { lang, LANGS, FLAGS, tr, setLang, translatePage } from './i18n.js';
 import { pickSettings, encodeSettings, decodeSettings, applySettings, encodeTournament, decodeTournament } from './share.js';
 import { unlockAudio, alert, keepScreenOn, releaseScreen } from './alerts.js';
+import { ACCENTS, accentCss } from './brand.js';
 
 const $ = (id) => document.getElementById(id);
 
+// The TV view is this page with ?tv: a second window that only shows, following the main one.
+const TV_MODE = new URLSearchParams(location.search).has('tv');
+let tv = loadTv();
+let brand = loadBrand();
 let setup = loadSetup();
 let game = loadGame();
 
@@ -303,7 +308,7 @@ function goHome() {
 // ---------- export and import: one file with everything ----------
 
 $('export-btn').addEventListener('click', async () => {
-  const data = { app: 'ProPoker', v: 1, at: Date.now(), names: setup.knownNames, tournaments: entries().map(({ id, created, setup: s, game: g }) => ({ id, created, setup: s, game: g })) };
+  const data = { app: 'ProPoker', v: 1, at: Date.now(), names: setup.knownNames, brand, tournaments: entries().map(({ id, created, setup: s, game: g }) => ({ id, created, setup: s, game: g })) };
   const name = `propoker-${new Date().toISOString().slice(0, 10)}.json`;
   const file = new File([JSON.stringify(data)], name, { type: 'application/json' });
   if (navigator.canShare?.({ files: [file] })) {
@@ -344,6 +349,10 @@ $('import-file').addEventListener('change', async () => {
       saveS();
       if (game) save();
     } else saveSaved({ id: t.id, created: t.created ?? Date.now(), setup: t.setup, game: t.game ?? null });
+  }
+  if (data.brand) {
+    saveBrand(data.brand);
+    applyBrand();
   }
   if (Array.isArray(data.names)) {
     const have = new Set(setup.knownNames.map((n) => n.toLowerCase()));
@@ -1074,8 +1083,10 @@ function openGame() {
   keepScreenOn();
 }
 
+// With the TV view open, the sounds play in one window only (`tv.sound`: on the TV, or here).
 function sounds() {
-  return { sound: S().sounds.on, vibrate: S().sounds.vibrate };
+  const on = S().sounds.on && (TV_MODE ? tv.sound === 'tv' : tv.sound !== 'tv' || !tvOpen(Date.now()));
+  return { sound: on, vibrate: !TV_MODE && S().sounds.vibrate };
 }
 
 // Every half second: move the clock on, beep, redraw.
@@ -1108,15 +1119,15 @@ function tick() {
 const colourUpText = (up) => tr('Colour up: the {chips} chips are not needed any more', { chips: up.map((c) => `${colorName(c.color).toLowerCase()} ${chips(c.value)}`).join(', ') });
 
 // The chip values under the clock, for the players. Chips not needed any more are struck out.
-let legendKey = '';
-function renderChipLegend() {
+const legendKeys = {};
+function renderChipLegend(box) {
   const set = S().chipSet;
   if (!set) return;
   const gone = new Set(colourUp(set, game.levels, game.clock.levelIndex).map((c) => c.value));
   const key = JSON.stringify([set, [...gone]]);
-  if (key === legendKey) return;
-  legendKey = key;
-  $('c-chips').replaceChildren(...sortChips(set).map((c) => el('span', { class: gone.has(c.value) ? 'stack-chip gone' : 'stack-chip' }, [chipDot(c), chips(c.value)])));
+  if (key === legendKeys[box]) return;
+  legendKeys[box] = key;
+  $(box).replaceChildren(...sortChips(set).map((c) => el('span', { class: gone.has(c.value) ? 'stack-chip gone' : 'stack-chip' }, [chipDot(c), chips(c.value)])));
 }
 
 // A new level or a break: a chime and the big announcement for a few seconds.
@@ -1136,7 +1147,8 @@ function levelChanged(before, rebuysWereOpen) {
   } else {
     announce(tr('Level {n}', { n: T.currentLevelNumber(game) }), blindsText(now), sub);
   }
-  renderGame();
+  if (TV_MODE) renderTv();
+  else renderGame();
 }
 
 function announce(title, main, sub, note = '') {
@@ -1159,25 +1171,64 @@ function renderGame() {
   fitPages();
 }
 
-function renderClock() {
-  const now = Date.now();
+// The clock's level, time, blinds and next blinds, in the boxes `${p}-level`, `${p}-count` …
+// (`c` on the clock page, `tv` in the TV view), with the box `box` coloured for pause, last minute and break.
+function paintClock(p, box, now) {
   const c = game.clock;
   const l = level();
-  const n = T.currentLevelNumber(game);
   const left = C.remaining(c, game.levels, now);
   const running = C.running(c);
   const notStarted = !running && c.levelIndex === 0 && c.levelMs === 0;
-  const label = l.break ? tr('Break') : tr('Level {n}', { n });
-  $('c-level').textContent = running || notStarted ? label : `${label} · ${tr('Paused')}`;
-  $('c-count').textContent = clockText(left);
-  $('c-progress').style.width = `${(100 * C.elapsed(c, now)) / C.levelLength(game.levels, c.levelIndex)}%`;
+  const label = l.break ? tr('Break') : tr('Level {n}', { n: T.currentLevelNumber(game) });
+  $(`${p}-level`).textContent = running || notStarted ? label : `${label} · ${tr('Paused')}`;
+  $(`${p}-count`).textContent = clockText(left);
+  $(`${p}-progress`).style.width = `${(100 * C.elapsed(c, now)) / C.levelLength(game.levels, c.levelIndex)}%`;
   const next = nextPlay(game.levels, c.levelIndex);
-  $('c-blinds').textContent = l.break ? tr('Break') : blindsText(l);
-  $('c-ante').textContent = !l.break && l.ante ? tr('Ante {a}', { a: chips(l.ante) }) : '';
-  $('c-next').textContent = next ? tr('Next: {blinds}', { blinds: blindsText(next) + (next.ante ? ` · ${tr('ante {a}', { a: chips(next.ante) })}` : '') }) : '';
-  $('clock').classList.toggle('paused', !running);
-  $('clock').classList.toggle('warn', running && left <= 60000);
-  $('clock').classList.toggle('on-break', !!l.break);
+  $(`${p}-blinds`).textContent = l.break ? tr('Break') : blindsText(l);
+  $(`${p}-ante`).textContent = !l.break && l.ante ? tr('Ante {a}', { a: chips(l.ante) }) : '';
+  $(`${p}-next`).textContent = next ? tr('Next: {blinds}', { blinds: blindsText(next) + (next.ante ? ` · ${tr('ante {a}', { a: chips(next.ante) })}` : '') }) : '';
+  $(box).classList.toggle('paused', !running);
+  $(box).classList.toggle('warn', running && left <= 60000);
+  $(box).classList.toggle('on-break', !!l.break);
+  return { running, notStarted };
+}
+
+// Players, average stack, prize pool and next break
+function clockFacts(now) {
+  const c = game.clock;
+  const l = level();
+  const next = nextPlay(game.levels, c.levelIndex);
+  const left = T.inPlay(game).length;
+  const avg = T.averageStack(game);
+  const bb = l.break ? next?.bb : l.bb;
+  const toBreak = C.untilBreak(c, game.levels, now);
+  const pool = T.money(game).pool;
+  const leader = T.chipLeader(game);
+  return [
+    fact(tr('Players'), `${left} / ${game.players.length}`, { sub: leader.length ? tr('Leader: {name}, {chips}', { name: leader.map((p) => p.name).join(', '), chips: chips(leader[0].stack) }) : '' }),
+    fact(tr('Average stack'), chips(avg), { sub: bb ? tr('{n} big blinds', { n: Math.round(avg / bb) }) : '' }),
+    fact(tr('Prize pool'), cash(pool), { gold: true }),
+    fact(tr('Next break'), toBreak == null ? '–' : toBreak === 0 ? tr('Now') : clockText(toBreak)),
+  ];
+}
+
+// Add-ons now, colour up, rebuys or late entry until …
+function clockStatus() {
+  const c = game.clock;
+  const l = level();
+  const status = [];
+  if (T.addOnTime(game)) status.push(tr('Add-ons now'));
+  const up = S().chipSet ? colourUp(S().chipSet, game.levels, c.levelIndex).filter((x) => !colourUp(S().chipSet, game.levels, 0).includes(x)) : [];
+  if (l.break && up.length) status.push(colourUpText(up));
+  if (S().rebuy.on && T.rebuysOpen(game)) status.push(tr('Rebuys until the end of level {n}', { n: S().rebuy.untilLevel }));
+  else if (T.lateOpen(game)) status.push(tr('Late entry until the end of level {n}', { n: S().lateUntilLevel }));
+  return status.join(' · ');
+}
+
+function renderClock() {
+  const now = Date.now();
+  const l = level();
+  const { running, notStarted } = paintClock('c', 'clock', now);
   $('c-pause').textContent = running ? tr('Pause') : notStarted ? tr('Start the clock') : tr('Resume');
   $('c-pause').className = running ? '' : 'primary';
   $('c-mute').textContent = S().sounds.on ? tr('Sound on') : tr('Muted');
@@ -1189,27 +1240,10 @@ function renderClock() {
   $('mini-clock').classList.toggle('paused', !running);
 
   // Facts: once a second is plenty, but they're cheap
-  const left2 = T.inPlay(game).length;
-  const avg = T.averageStack(game);
-  const bb = l.break ? next?.bb : l.bb;
-  const toBreak = C.untilBreak(c, game.levels, now);
-  const pool = T.money(game).pool;
-  const leader = T.chipLeader(game);
-  $('c-facts').replaceChildren(
-    fact(tr('Players'), `${left2} / ${game.players.length}`, { sub: leader.length ? tr('Leader: {name}, {chips}', { name: leader.map((p) => p.name).join(', '), chips: chips(leader[0].stack) }) : '' }),
-    fact(tr('Average stack'), chips(avg), { sub: bb ? tr('{n} big blinds', { n: Math.round(avg / bb) }) : '' }),
-    fact(tr('Prize pool'), cash(pool), { gold: true }),
-    fact(tr('Next break'), toBreak == null ? '–' : toBreak === 0 ? tr('Now') : clockText(toBreak)),
-  );
+  $('c-facts').replaceChildren(...clockFacts(now));
   $('count-btn').hidden = !l.break;
-  renderChipLegend();
-  const status = [];
-  if (T.addOnTime(game)) status.push(tr('Add-ons now'));
-  const up = S().chipSet ? colourUp(S().chipSet, game.levels, c.levelIndex).filter((x) => !colourUp(S().chipSet, game.levels, 0).includes(x)) : [];
-  if (l.break && up.length) status.push(colourUpText(up));
-  if (S().rebuy.on && T.rebuysOpen(game)) status.push(tr('Rebuys until the end of level {n}', { n: S().rebuy.untilLevel }));
-  else if (T.lateOpen(game)) status.push(tr('Late entry until the end of level {n}', { n: S().lateUntilLevel }));
-  $('c-status').textContent = status.join(' · ');
+  renderChipLegend('c-chips');
+  $('c-status').textContent = clockStatus();
 }
 
 $('c-pause').addEventListener('click', () => {
@@ -2102,18 +2136,335 @@ function setupInstall() {
   $('ios-install-close').addEventListener('click', () => $('ios-install-dialog').close());
 }
 
+// ---------- the TV view ----------
+
+const PANELS = { blinds: 'Blind levels', prizes: 'Prizes', players: 'Players left', tables: 'Tables', out: 'Knocked out' };
+const CYCLES = [[0, 'Off'], [10, '10 s'], [20, '20 s'], [30, '30 s'], [60, '1 min']];
+const TV_SOUNDS = [['tv', 'On the TV'], ['main', 'On the main screen']];
+let tvPanel = 0; // which of the chosen panels shows now
+let tvSwitched = Date.now();
+let tvDrawn = 0;
+let tvLevel = null; // the level last shown, to notice a new one
+let tvRebuys = null;
+let tvShown = ''; // 'wait' or 'end:…' once drawn, so they aren't drawn every half second
+
+const tvPanels = () => tv.panels.filter((k) => k !== 'tables' || game.tables.some((t) => t.open));
+
+function renderTv() {
+  tvShown = '';
+  renderTvBrand();
+  tvTick();
+  if (game && !game.finished) renderTvPanel();
+}
+
+function renderTvBrand() {
+  const name = brand.name || (game ? S().name : '');
+  $('tv-brand').replaceChildren(...[brand.logo ? el('img', { src: brand.logo, alt: '', class: brand.plate ? 'plate' : '' }) : null, name ? el('span', {}, name) : null].filter(Boolean));
+}
+
+// Without a tournament, or at the end: a few words, and the results on the side
+function renderTvQuiet(text, results) {
+  for (const id of ['tv-level', 'tv-count', 'tv-ante', 'tv-next', 'tv-status']) $(id).textContent = '';
+  $('tv-progress').style.width = '0';
+  $('tv-blinds').textContent = text;
+  $('tv-facts').hidden = true;
+  $('tv-chips').hidden = true;
+  $('tv-clock').classList.remove('paused', 'warn', 'on-break');
+  $('screen-tv').classList.toggle('with-side', !!results);
+  $('tv-panel-title').textContent = results ? tr('Results') : '';
+  $('tv-panel').replaceChildren(...(results ? [el('ul', { class: 'tv-rows' }, results)] : []));
+  $('tv-dots').replaceChildren();
+}
+
+function tvTick() {
+  const now = Date.now();
+  if ($('tv-start').hidden && now - (tvTick.seen ?? 0) > 3000) {
+    tvTick.seen = now;
+    markTvSeen(now);
+  }
+  if (!game) {
+    if (tvShown !== 'wait') renderTvQuiet(tr('Waiting for the tournament'));
+    tvShown = 'wait';
+    return;
+  }
+  if (game.finished) {
+    const key = `end:${game.finishedAt}`;
+    if (tvShown === key) return;
+    tvShown = key;
+    const winner = game.players.find((p) => p.place === 1);
+    renderTvQuiet(winner && !game.deal ? tr('{name} wins!', { name: winner.name }) : S().name, results(game).filter((r) => r.place && r.place <= 10).map((r) =>
+      el('li', {}, [el('span', { class: 'tv-lv' }, ord(r.place)), el('span', { class: 'tv-name' }, r.name), el('span', { class: 'tv-amount' }, r.prize ? cash(r.prize) : '')])));
+    return;
+  }
+  tvShown = '';
+  const wasOpen = T.rebuysOpen(game);
+  game.clock = C.catchUp(game.clock, game.levels, now, S().smallestChip); // only here: the main window saves
+  if (tvLevel !== null && game.clock.levelIndex !== tvLevel) levelChanged(tvLevel, tvRebuys ?? wasOpen);
+  tvLevel = game.clock.levelIndex;
+  tvRebuys = T.rebuysOpen(game);
+  const left = C.remaining(game.clock, game.levels, now);
+  if (C.running(game.clock) && left <= 60000 && left > 50000 && warnedLevel !== game.clock.levelIndex) {
+    warnedLevel = game.clock.levelIndex;
+    alert('warning', sounds());
+  }
+  paintClock('tv', 'tv-clock', now);
+  $('tv-facts').hidden = !tv.facts;
+  if (tv.facts) $('tv-facts').replaceChildren(...clockFacts(now));
+  $('tv-chips').hidden = !tv.chips;
+  if (tv.chips) renderChipLegend('tv-chips');
+  $('tv-status').textContent = clockStatus();
+  const list = tvPanels();
+  if (tv.cycle && list.length > 1 && now - tvSwitched >= tv.cycle * 1000) {
+    tvPanel = (tvPanel + 1) % list.length;
+    tvSwitched = now;
+    renderTvPanel();
+  } else if (now - tvDrawn > 10000) renderTvPanel(); // the clock times move on
+}
+
+const TV_RENDER = {
+  blinds() {
+    const times = C.schedule(game.clock, game.levels, Date.now());
+    const rows = [];
+    for (let i = game.clock.levelIndex; i < game.levels.length && rows.length < 9; i++) {
+      const l = game.levels[i];
+      rows.push(el('li', { class: [i === game.clock.levelIndex ? 'now' : '', l.break ? 'break' : ''].join(' ') }, [
+        el('span', { class: 'tv-lv' }, l.break ? tr('Break') : String(levelNumber(game.levels, i))),
+        el('span', { class: 'tv-name' }, l.break ? tr('{m} min', { m: l.minutes }) : blindsText(l) + (l.ante ? ` · ${tr('ante {a}', { a: chips(l.ante) })}` : '')),
+        el('span', { class: 'tv-time' }, timeText(times[i].start)),
+      ]));
+    }
+    return [el('ul', { class: 'tv-rows' }, rows)];
+  },
+  prizes() {
+    const byPlace = new Map(game.players.filter((p) => p.place).map((p) => [p.place, p]));
+    return [
+      el('div', { class: 'tv-pool' }, [el('span', {}, tr('Prize pool')), el('strong', {}, cash(T.money(game).pool))]),
+      el('ul', { class: 'tv-rows' }, T.prizeList(game).map((a, i) => el('li', {}, [el('span', { class: 'tv-lv' }, ord(i + 1)), el('span', { class: 'tv-name' }, byPlace.get(i + 1)?.name ?? ''), el('span', { class: 'tv-amount' }, cash(a))]))),
+    ];
+  },
+  players() {
+    const leaders = new Set(T.chipLeader(game).map((p) => p.id));
+    const list = [...T.inPlay(game)].sort((a, b) => (b.stack ?? -1) - (a.stack ?? -1) || a.name.localeCompare(b.name));
+    return [el('ul', { class: list.length > 10 ? 'tv-rows two-cols' : 'tv-rows' }, list.map((p) => el('li', { class: leaders.has(p.id) ? 'leader' : '' }, [
+      el('span', { class: 'tv-name' }, p.name),
+      el('span', { class: 'tv-time' }, p.stack != null ? stackText(p.stack) : tr('Table {t}, seat {s}', { t: p.table, s: p.seat })),
+    ])))];
+  },
+  tables() {
+    const open = game.tables.filter((t) => t.open);
+    return [el('div', { class: open.length > 2 ? 'tv-tables two-cols' : 'tv-tables' }, open.map((t) => drawnTable(t, S().seatsPerTable, new Set())))];
+  },
+  out() {
+    const out = game.players.filter((p) => p.status !== 'in').sort((a, b) => b.outAt - a.outAt).slice(0, 12);
+    if (!out.length) return [el('p', { class: 'tv-empty' }, tr('Nobody is out yet'))];
+    return [el('ul', { class: 'tv-rows' }, out.map((p) => el('li', {}, [
+      el('span', { class: 'tv-lv' }, p.place ? ord(p.place) : ''),
+      el('span', { class: 'tv-name' }, p.name),
+      el('span', { class: 'tv-time' }, p.outBy ? tr('Out by {name}', { name: T.player(game, p.outBy)?.name ?? '' }) : ''),
+    ])))];
+  },
+};
+
+function renderTvPanel() {
+  tvDrawn = Date.now();
+  const list = tvPanels();
+  $('screen-tv').classList.toggle('with-side', list.length > 0);
+  if (!list.length) return;
+  tvPanel %= list.length;
+  const key = list[tvPanel];
+  $('tv-panel-title').textContent = tr(PANELS[key]);
+  $('tv-panel').replaceChildren(...TV_RENDER[key]());
+  $('tv-dots').replaceChildren(...(list.length > 1 ? list.map((k, i) => el('span', { class: i === tvPanel ? 'on' : '' })) : []));
+}
+
+function startTv() {
+  document.body.classList.add('tv-mode');
+  document.documentElement.dataset.theme = 'dark'; // the TV is always dark
+  document.title = 'ProPoker TV';
+  show('tv');
+  renderTv();
+  setInterval(tvTick, 500);
+  let hide = 0;
+  addEventListener('pointermove', () => {
+    document.body.classList.add('pointer');
+    clearTimeout(hide);
+    hide = setTimeout(() => document.body.classList.remove('pointer'), 3000);
+  });
+}
+
+$('tv-go').addEventListener('click', async () => {
+  $('tv-start').hidden = true;
+  unlockAudio();
+  keepScreenOn();
+  markTvSeen(Date.now());
+  try {
+    await document.documentElement.requestFullscreen();
+  } catch {}
+});
+$('tv-full').addEventListener('click', async () => {
+  try {
+    if (document.fullscreenElement) await document.exitFullscreen();
+    else await document.documentElement.requestFullscreen();
+  } catch {}
+});
+$('tv-settings-btn').addEventListener('click', openTvDialog);
+
+// What the TV shows: chosen in the main window's cog (or on the TV); saved, and the other window follows.
+function openTvDialog() {
+  renderTvDialog();
+  $('tv-open').hidden = TV_MODE;
+  $('tv-how').hidden = TV_MODE;
+  $('tv-dialog').showModal();
+}
+
+function changeTv(change) {
+  change();
+  saveTv(tv);
+  if (TV_MODE) renderTv();
+  renderTvDialog();
+}
+
+function renderTvDialog() {
+  $('tv-panels').replaceChildren(
+    ...TV_PANELS.map((k) =>
+      el('label', {}, [
+        el('input', { type: 'checkbox', checked: tv.panels.includes(k), onchange: (e) => changeTv(() => (tv.panels = TV_PANELS.filter((x) => (x === k ? e.target.checked : tv.panels.includes(x))))) }),
+        el('span', {}, tr(PANELS[k])),
+      ]),
+    ),
+  );
+  $('tv-cycle').replaceChildren(...CYCLES.map(([v, label]) => el('button', { type: 'button', 'aria-pressed': String(tv.cycle === v), onclick: () => changeTv(() => (tv.cycle = v)) }, tr(label))));
+  $('tv-sound').replaceChildren(...TV_SOUNDS.map(([v, label]) => el('button', { type: 'button', 'aria-pressed': String(tv.sound === v), onclick: () => changeTv(() => (tv.sound = v)) }, tr(label))));
+  $('tv-facts-on').checked = tv.facts;
+  $('tv-chips-on').checked = tv.chips;
+}
+$('tv-facts-on').addEventListener('change', () => changeTv(() => (tv.facts = $('tv-facts-on').checked)));
+$('tv-chips-on').addEventListener('change', () => changeTv(() => (tv.chips = $('tv-chips-on').checked)));
+$('tv-done').addEventListener('click', () => $('tv-dialog').close());
+$('tv-look').addEventListener('click', () => {
+  $('tv-dialog').close();
+  openLook();
+});
+$('g-tv').addEventListener('click', () => {
+  $('settings-dialog').close();
+  openTvDialog();
+});
+$('tv-open').addEventListener('click', () => {
+  $('tv-dialog').close();
+  const w = window.open(`${location.pathname}?tv`, 'propoker-tv', 'popup,width=1280,height=720');
+  if (!w) toast(tr('The browser blocked the new window. Allow pop-ups for this page'));
+});
+
+// The other window saved something: the TV follows the tournament; both follow the TV choices and the look.
+addEventListener('storage', (e) => {
+  if (e.key === TV_KEY || e.key === null) {
+    tv = loadTv();
+    if (TV_MODE) renderTv();
+    if ($('tv-dialog').open) renderTvDialog();
+  }
+  if (e.key === BRAND_KEY || e.key === null) applyBrand();
+  if (TV_MODE && (e.key === 'propoker.tournament' || e.key === null)) {
+    game = loadGame();
+    renderTv();
+  }
+});
+
+// ---------- your logo and colours ----------
+
+function applyBrand() {
+  brand = loadBrand();
+  let style = $('brand-style');
+  if (!style) document.head.append((style = el('style', { id: 'brand-style' })));
+  style.textContent = accentCss(brand.accent);
+  $('brand-logo').hidden = !brand.logo;
+  if (brand.logo) $('brand-logo').src = brand.logo;
+  $('brand-logo').classList.toggle('plate', brand.plate);
+  document.body.classList.toggle('has-logo', !!brand.logo);
+  if (TV_MODE) renderTvBrand();
+  if ($('look-dialog').open) renderLook();
+}
+
+function setBrand(change) {
+  const next = cleanBrand({ ...brand, ...change });
+  saveBrand(next);
+  if (loadBrand().logo !== next.logo) return ($('look-error').textContent = tr('The logo is too big to keep. Try a smaller picture')), applyBrand();
+  $('look-error').textContent = '';
+  applyBrand();
+}
+
+function openLook() {
+  $('look-error').textContent = '';
+  $('look-name').value = brand.name;
+  renderLook();
+  $('look-dialog').showModal();
+}
+
+function renderLook() {
+  $('look-preview').replaceChildren(brand.logo ? el('img', { src: brand.logo, alt: '', class: brand.plate ? 'plate' : '' }) : el('span', { class: 'muted' }, tr('No logo yet')));
+  $('look-remove').disabled = !brand.logo;
+  $('look-plate').checked = brand.plate;
+  const own = brand.accent && !ACCENTS.includes(brand.accent) ? brand.accent : null;
+  $('look-accents').replaceChildren(
+    ...[null, ...ACCENTS].map((c) => el('button', { type: 'button', class: 'swatch', style: `background: ${c ?? '#1a6b45'}`, 'aria-pressed': String(brand.accent === c), 'aria-label': c ? tr('Colour {c}', { c }) : tr('ProPoker green'), onclick: () => setBrand({ accent: c }) })),
+    el('button', { type: 'button', class: 'swatch own', style: own ? `background: ${own}` : '', 'aria-pressed': String(!!own), 'aria-label': tr('Your own colour'), onclick: () => { $('look-color').value = brand.accent ?? '#1a6b45'; $('look-color').click(); } }, own ? '' : '+'),
+  );
+}
+
+$('look-btn').addEventListener('click', openLook);
+$('look-done').addEventListener('click', () => $('look-dialog').close());
+$('look-remove').addEventListener('click', () => setBrand({ logo: null }));
+$('look-plate').addEventListener('change', () => setBrand({ plate: $('look-plate').checked }));
+$('look-name').addEventListener('input', () => {
+  saveBrand({ ...brand, name: $('look-name').value });
+  brand = loadBrand();
+  if (TV_MODE) renderTvBrand();
+});
+$('look-color').addEventListener('input', () => setBrand({ accent: $('look-color').value }));
+$('look-file-btn').addEventListener('click', () => $('look-file').click());
+$('look-file').addEventListener('change', async () => {
+  const file = $('look-file').files[0];
+  $('look-file').value = '';
+  if (!file) return;
+  if (file.size > 2 * 1024 * 1024) return ($('look-error').textContent = tr('The logo can be at most 2 MB'));
+  try {
+    setBrand({ logo: await logoData(file) });
+  } catch {
+    $('look-error').textContent = tr('This picture can’t be used. Try a PNG, JPG, WebP or SVG');
+  }
+});
+
+// The logo as a data URL to keep: an SVG as it is, a picture made at most 800 px wide or high
+async function logoData(file) {
+  const asUrl = (blob) => new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(r.result);
+    r.onerror = reject;
+    r.readAsDataURL(blob);
+  });
+  if (file.type === 'image/svg+xml') {
+    if (file.size > 300 * 1024) throw new Error('big');
+    return asUrl(file);
+  }
+  const bitmap = await createImageBitmap(file);
+  const scale = Math.min(1, 800 / Math.max(bitmap.width, bitmap.height));
+  const canvas = el('canvas', { width: Math.round(bitmap.width * scale), height: Math.round(bitmap.height * scale) });
+  canvas.getContext('2d').drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+  const webp = canvas.toDataURL('image/webp', 0.9);
+  return webp.startsWith('data:image/webp') ? webp : canvas.toDataURL('image/png');
+}
+
 // ---------- start ----------
 
 document.addEventListener('pointerdown', unlockAudio);
 document.addEventListener('click', unlockAudio);
 document.addEventListener('visibilitychange', () => {
-  if (!game || game.finished) return;
+  if (TV_MODE || !game || game.finished) return;
   if (document.visibilityState === 'visible') {
     keepScreenOn();
     tick();
   } else saveSeen(Date.now());
 });
-addEventListener('pagehide', () => game && !game.finished && saveSeen(Date.now()));
+addEventListener('pagehide', () => !TV_MODE && game && !game.finished && saveSeen(Date.now()));
 setInterval(tick, 500);
 
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(() => {});
@@ -2241,6 +2592,8 @@ async function openSharedSettings() {
 }
 
 async function start() {
+  applyBrand();
+  if (TV_MODE) return startTv();
   if (game && !game.finished) {
     openGame();
     if (!/^#[st]=/.test(location.hash)) checkAway(); // a link asks its own question
@@ -2251,4 +2604,4 @@ async function start() {
   await openSharedSettings();
 }
 start();
-addEventListener('hashchange', openSharedSettings);
+if (!TV_MODE) addEventListener('hashchange', openSharedSettings);

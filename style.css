@@ -868,3 +868,81 @@ body.wide .tables-grid.drawn > :only-child { width: 100%; }
 .chip-legend .stack-chip { font-size: 15px; }
 .chip-legend .gone { opacity: 0.4; text-decoration: line-through; }
 .pick-dot { display: inline-flex; align-items: center; gap: 10px; }
+
+/* ---------- Your logo (in place of the ProPoker name) ---------- */
+body.has-logo .topbar .brand .logo, body.has-logo .topbar .brand h1 { display: none; }
+.brand-logo { display: block; height: 38px; max-width: 200px; object-fit: contain; }
+img.plate { padding: 4px 8px; border-radius: 10px; background: #ffffff; }
+.look-link { margin: 0; text-align: center; }
+.look-link button.link { min-height: 44px; }
+.look-preview { display: grid; place-items: center; min-height: 96px; margin: 12px 0; padding: 12px; border-radius: 14px; background: var(--well); border: 1px solid var(--well-line); }
+.look-preview img { max-height: 80px; max-width: 100%; object-fit: contain; }
+.swatches { display: flex; flex-wrap: wrap; gap: 10px; }
+button.swatch { width: 44px; height: 44px; min-height: 44px; padding: 0; border-radius: 50%; border: 2px solid var(--glass-line); box-shadow: none; font-size: 22px; font-weight: 700; color: var(--muted); }
+button.swatch[aria-pressed="true"] { outline: 3px solid var(--text); outline-offset: 2px; }
+.seg.five { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+
+/* ---------- The TV view (?tv): sized by the screen, readable across the room ---------- */
+body.tv-mode { overflow: hidden; }
+body.tv-mode .topbar, body.tv-mode .tagline { display: none; }
+body.tv-mode main { max-width: none; margin: 0; padding: 0; }
+.tv:not([hidden]) { display: grid; grid-template-columns: minmax(0, 1fr); gap: 2vw; height: 100vh; padding: 3vh 2.5vw; box-sizing: border-box; }
+.tv.with-side { grid-template-columns: minmax(0, 58fr) minmax(0, 42fr); }
+.tv-main { display: flex; flex-direction: column; gap: 2vh; min-height: 0; }
+.tv-clock { flex: 1; display: flex; flex-direction: column; justify-content: center; min-height: 0; overflow: hidden; padding: 2.5vh 2vw; border-radius: 3vh; }
+.tv-brand { display: flex; align-items: center; justify-content: center; gap: 1.5vw; min-height: 0; margin-bottom: 1vh; font: 700 min(2.2vw, 4vh)/1.1 "Barlow Condensed", system-ui, sans-serif; text-transform: uppercase; letter-spacing: 0.04em; }
+.tv-brand:empty { display: none; }
+.tv-brand img { max-height: 8vh; max-width: 40%; object-fit: contain; }
+.tv-clock .c-level { font-size: min(3.4vw, 6vh); }
+.tv-clock .countdown { font-size: min(22vw, 36vh); margin: 0.5vh 0; }
+.tv.with-side .tv-clock .countdown { font-size: min(14vw, 27vh); }
+.tv-clock .progress { height: 1vh; margin: 1vh 6%; }
+.tv-clock .c-blinds { font-size: min(7.5vw, 13vh); }
+.tv.with-side .tv-clock .c-blinds { font-size: min(5vw, 9vh); }
+.tv-clock .c-ante { font-size: min(3vw, 5.5vh); }
+.tv-clock .c-next { margin-top: 1vh; font-size: min(2.2vw, 4vh); }
+.tv-facts { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1vw; margin: 0; }
+.tv-facts .fact { padding: 1.4vh 1vw; border-radius: 2vh; }
+.tv-facts .fact-label { font-size: min(1.1vw, 2vh); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tv-facts .fact-value { font-size: min(2.5vw, 5vh); }
+.tv-facts .fact-sub { font-size: min(1.1vw, 2vh); }
+.tv-chips { margin: 0; gap: 1vh 2vw; }
+.tv-chips .stack-chip { font-size: min(1.6vw, 3vh); }
+.tv-status { margin: 0; font-size: min(1.6vw, 3vh); }
+.tv-status:empty { display: none; }
+.tv-side { display: none; flex-direction: column; min-height: 0; padding: 3vh 2vw; border-radius: 3vh; background: var(--glass); border: 1px solid var(--glass-line); box-shadow: var(--shadow); }
+.tv.with-side .tv-side { display: flex; }
+.tv-panel-title { margin: 0 0 2vh; font: 700 min(3vw, 5.5vh)/1 "Barlow Condensed", system-ui, sans-serif; text-transform: uppercase; letter-spacing: 0.04em; }
+.tv-panel { flex: 1; min-height: 0; overflow: hidden; font-size: min(1.9vw, 3.6vh); animation: fade-in 0.4s ease-out; }
+.tv-rows { list-style: none; margin: 0; padding: 0; }
+.tv-rows li { display: flex; align-items: baseline; gap: 1.2vw; padding: 1vh 0; border-top: 1px solid var(--line); break-inside: avoid; }
+.tv-rows li:first-child { border-top: 0; }
+.tv-rows.two-cols { columns: 2; column-gap: 2.5vw; font-size: 0.85em; }
+.tv-rows.two-cols li { border-top: 0; border-bottom: 1px solid var(--line); }
+.tv-rows li.now { color: var(--green); font-weight: 700; }
+.tv-rows li.break { color: var(--muted); }
+.tv-rows li.leader .tv-name { color: var(--gold); }
+.tv-lv { flex: none; min-width: 2.6em; font-weight: 700; font-variant-numeric: tabular-nums; }
+.tv-name { flex: 1; min-width: 0; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tv-time, .tv-amount { flex: none; font-variant-numeric: tabular-nums; color: var(--muted); }
+.tv-amount { color: var(--gold); font-weight: 700; }
+.tv-pool { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 1.5vh; font-size: 1.1em; }
+.tv-pool strong { color: var(--gold); font: 700 1.6em/1 "Barlow Condensed", system-ui, sans-serif; }
+.tv-empty { color: var(--muted); }
+.tv-tables { display: grid; grid-auto-rows: minmax(0, 1fr); gap: 2vh; height: 100%; }
+.tv-tables.two-cols { grid-template-columns: 1fr 1fr; }
+.tv-tables .drawn-table { display: flex; justify-content: center; align-items: center; min-height: 0; height: 100%; margin: 0; }
+.tv-tables .poker-table { width: auto; height: 100%; max-width: 100%; max-height: 100%; }
+.tv-panel .seat-marker { pointer-events: none; }
+.tv-dots { display: flex; justify-content: center; gap: 1vw; margin-top: 1.5vh; }
+.tv-dots span { width: 1.2vh; height: 1.2vh; border-radius: 50%; background: var(--line); }
+.tv-dots span.on { background: var(--green); }
+.tv-start { position: fixed; inset: 0; z-index: 20; display: grid; place-items: center; padding: 16px; background: var(--backdrop); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
+.tv-start[hidden] { display: none; }
+.tv-start-box { max-width: 460px; text-align: center; }
+.tv-corner { position: fixed; top: 2vh; right: 2vw; z-index: 15; display: flex; gap: 8px; opacity: 0; pointer-events: none; transition: opacity 0.3s; }
+body.pointer .tv-corner { opacity: 1; pointer-events: auto; }
+body.tv-mode .overlay-box { width: min(70vw, 1200px); padding: 6vh 4vw; }
+body.tv-mode .ov-title { font-size: min(4vw, 7vh); }
+body.tv-mode .ov-main { font-size: min(12vw, 22vh); }
+body.tv-mode .ov-sub, body.tv-mode .ov-note { font-size: min(2.6vw, 4.6vh); }

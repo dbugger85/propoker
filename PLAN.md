@@ -267,6 +267,8 @@ Same warm off-white page in light and navy `#0a0f1c` in dark, the same glass var
 - End screen (owner's wish 2026-10-17): **Share results** (big), then **Main menu** and **Play again** (same setup and players), and a small **Undo the last knockout** / **Undo the deal** link instead of "Back to the tournament".
 - Setup order (owner's wish 2026-10-17): Players comes right after Tournament, before Chips and Blinds, since the number of players affects the tournament length, the chip check and the payouts.
 - Tour pictures (owner's wish 2026-10-17): the start page's pictures follow the theme: dark pictures in dark mode, light in light mode, also when the theme is chosen by hand.
+- TV view (owner's wish 2026-10-17): a second window (`?tv`) for the TV, in the same browser on the same computer, kept up to date through the browser's storage event, so no server. The clock big, with chosen panels beside it (blind levels, prizes, players left, tables, knocked out) that change every 10–60 s or stay, and facts and chip values under the clock (each can be turned off). Sounds play on the TV or on the main screen, not both. Always dark.
+- Your logo and colours (owner's wish 2026-10-17, like ProQuiz): a logo (in place of the ProPoker name and big on the TV, with an optional white backing), a name for the TV and an accent colour that re-colours the app in light and dark. Kept on the device, included in Export everything.
 
 ## 10. Table view and chip counts (planned 2026-10-16, built 2026-10-16)
 

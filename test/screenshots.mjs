@@ -175,6 +175,27 @@ try {
     await page.close();
   }
 
+  // The TV view next to the blind levels (1280×720), from the same evening
+  {
+    const ctx = await browser.newContext({ viewport: { width: 1280, height: 720 }, deviceScaleFactor: 1 });
+    const main = await ctx.newPage();
+    await main.clock.setFixedTime(new Date('2026-10-16T21:12:00'));
+    const page = await scene('dark');
+    const state = await page.evaluate(() => JSON.stringify(localStorage));
+    await page.close();
+    await main.goto(BASE + '?lang=en');
+    await main.evaluate((s) => { localStorage.clear(); for (const [k, v] of Object.entries(JSON.parse(s))) localStorage.setItem(k, v); localStorage.setItem('propoker.brand', JSON.stringify({ v: 1, name: 'Friday Poker Club', accent: null, logo: null, plate: false })); }, state);
+    const tv = await ctx.newPage();
+    await tv.clock.setFixedTime(new Date('2026-10-16T21:12:00'));
+    await tv.goto(BASE + '?tv&lang=en');
+    await tv.click('#tv-go');
+    await tv.mouse.move(10, 700);
+    await tv.evaluate(() => document.body.classList.remove('pointer'));
+    await tv.waitForTimeout(600);
+    await tv.screenshot({ path: out('tv') });
+    await ctx.close();
+  }
+
   // The link preview (1200×630)
   const preview = await scene('dark', { viewport: { width: 1200, height: 630 }, deviceScaleFactor: 1 });
   await preview.screenshot({ path: `${ROOT}icons/preview.png` });

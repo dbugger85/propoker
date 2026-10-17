@@ -600,6 +600,54 @@ try {
   assert.equal(await tab.textContent('#c-pause'), 'Start klokka');
   await tab.screenshot({ path: `${shots}/14-tablet-no.png` });
 
+  // The TV view: a second window that follows the main one, with your logo and colour
+  const ctx = await browser.newContext({ viewport: { width: 1280, height: 720 } });
+  const admin = await ctx.newPage();
+  admin.on('pageerror', (e) => errors.push(e.message));
+  await admin.goto(base + '?lang=en');
+  await admin.evaluate(() => { localStorage.clear(); localStorage.setItem('propoker.installHidden', '1'); });
+  await admin.reload();
+  await admin.click('#new-btn');
+  for (const n of NAMES.slice(0, 6)) { await admin.fill('#new-player-name', n); await admin.press('#new-player-name', 'Enter'); }
+  await admin.click('#start-btn');
+  await admin.click('#ask-ok');
+  await admin.click('#settings-btn');
+  await admin.click('#g-tv');
+  await admin.click('#tv-panels label:has-text("Tables") input');
+  assert.deepEqual((await admin.evaluate(() => JSON.parse(localStorage.getItem('propoker.tv')))).panels, ['blinds', 'prizes', 'players', 'tables']);
+  const [tvPage] = await Promise.all([ctx.waitForEvent('page'), admin.click('#tv-open')]);
+  tvPage.on('pageerror', (e) => errors.push(e.message));
+  await tvPage.waitForSelector('#screen-tv:not([hidden])');
+  await tvPage.click('#tv-go');
+  assert.equal(await tvPage.textContent('#tv-blinds'), await admin.textContent('#c-blinds'));
+  assert.equal(await tvPage.textContent('#tv-panel-title'), 'Blind levels');
+  assert.equal(await tvPage.$$eval('#tv-dots span', (d) => d.length), 4);
+  // A knockout in the main window shows on the TV
+  await admin.click('#in-list li button:has-text("Anna")');
+  await admin.click('#action-buttons button:has-text("Knocked out")');
+  await admin.click('#ask-cancel'); // no rebuy
+  await admin.click('#pick-list li button:has-text("Ben")');
+  await tvPage.waitForFunction(() => document.querySelector('#tv-facts .fact-value')?.textContent === '5 / 6');
+  // Pausing too
+  await admin.click('#page-dots button[data-page="0"], #panel-tabs button:has-text("Clock")').catch(() => {});
+  await admin.evaluate(() => document.getElementById('c-pause').click()); // start the clock
+  await tvPage.waitForFunction(() => !document.getElementById('tv-clock').classList.contains('paused'));
+  // Your logo, name and colour: on the TV at once
+  await admin.click('#home-btn');
+  await admin.click('#look-btn');
+  await admin.setInputFiles('#look-file', `${root}icons/icon-192.png`);
+  await admin.fill('#look-name', 'Poker Club');
+  await admin.click('#look-accents .swatch >> nth=1');
+  await admin.waitForTimeout(300);
+  await admin.screenshot({ path: `${shots}/15-look.png` });
+  await admin.click('#look-done');
+  assert.equal(await admin.isVisible('#brand-logo'), true, 'the logo in place of the name');
+  await tvPage.waitForFunction(() => document.querySelector('#tv-brand img') && document.getElementById('tv-brand').textContent.includes('Poker Club'));
+  assert.match(await tvPage.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--green')), /hsl\(221/, 'the blue accent');
+  await tvPage.waitForTimeout(400);
+  await tvPage.screenshot({ path: `${shots}/15-tv.png` });
+  await ctx.close();
+
   assert.deepEqual(errors, []);
   assert.deepEqual(nativeDialogs, []);
   console.log('e2e passed');
